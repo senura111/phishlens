@@ -3,7 +3,7 @@
 Run from the repo root: `python -m model.src.train`
 
 Evaluation uses a held-out test set (precision, recall, F1, confusion matrix).
-The best approach is saved with joblib to model/artifacts/.
+SAVED_APPROACH is saved with joblib to model/artifacts/.
 
 Train/test split (decided for v1): group near-duplicate campaigns so each campaign is
 entirely in train or entirely in test (GroupShuffleSplit with one group id per
@@ -50,6 +50,10 @@ from model.src.predict import (
 )
 
 ARTIFACT_PATH = Path(__file__).resolve().parents[1] / "artifacts" / "phishlens.joblib"
+# Chosen over "text only" although its F1 was a hair lower (0.983 vs 0.985): it made
+# fewer false positives and leans less on the datasets' writing style, because part of
+# its evidence comes from the rules, which look for phishing tactics, not style.
+SAVED_APPROACH = TEXT_AND_RULES
 TEST_SIZE = 0.2
 RANDOM_STATE = 42
 # Emails this similar (cosine similarity of their TF-IDF vectors) are one campaign.
@@ -145,6 +149,57 @@ def top_words(vectorizer, classifier, n: int = TOP_WORDS) -> dict[str, list[str]
     return {"phishing": list(names[order[::-1][:n]]), "safe": list(names[order[:n]])}
 
 
+def weight_table(vectorizer, classifier, x) -> pd.DataFrame:
+    """Every input column of a text + rules model with its learned weight.
+
+    Raw weights can't be compared directly: a fired rule column is 1 (or 2/3), but a
+    word's TF-IDF value in an email is usually small (rows are scaled to length 1).
+    "typical push" = weight x the column's average value in the emails where it's
+    present: the log-odds it typically adds to an email's score.
+    """
+    names = [*vectorizer.get_feature_names_out()]
+    names += [f"rule: {rid}" for rid in features.REASON_IDS]
+    columns = x.tocsc()
+    present = np.diff(columns.indptr)  # how many emails have a non-zero value
+    totals = np.asarray(columns.sum(axis=0)).ravel()
+    typical = np.divide(
+        totals, present, out=np.zeros_like(totals, dtype=float), where=present > 0
+    )
+    weights = classifier.coef_[0]
+    table = pd.DataFrame(
+        {
+            "input": names,
+            "weight": weights,
+            "typical value": typical,
+            "emails": present,
+            "typical push": weights * typical,
+        }
+    )
+    table["rank"] = table["typical push"].abs().rank(ascending=False).astype(int)
+    return table
+
+
+def print_weight_report(table: pd.DataFrame, n: int = 10) -> None:
+    rules = table[table["input"].str.startswith("rule: ")]
+    words = table[~table["input"].str.startswith("rule: ")]
+    columns = ["input", "weight", "typical value", "typical push", "rank", "emails"]
+    fmt = {
+        "weight": "{:+.2f}".format,
+        "typical value": "{:.2f}".format,
+        "typical push": "{:+.2f}".format,
+    }
+    print(f"=== rule columns in {SAVED_APPROACH} (rank among {len(table)} inputs)")
+    print(
+        rules.sort_values("typical push", ascending=False)[columns].to_string(
+            index=False, formatters=fmt
+        )
+    )
+    for label, ascending in (("phishing", False), ("safe", True)):
+        print(f"\n=== strongest {n} {label} words by typical push")
+        top = words.sort_values("typical push", ascending=ascending).head(n)
+        print(top[columns].to_string(index=False, formatters=fmt))
+
+
 def false_positives_by_source(test: pd.DataFrame, verdicts) -> pd.DataFrame:
     safe = test.assign(flagged=[v != SAFE for v in verdicts])[test["label"] == 0]
     table = safe.groupby("source")["flagged"].agg(["sum", "count"])
@@ -228,28 +283,27 @@ def main() -> None:
     print("phishing:", ", ".join(words["phishing"]))
     print("safe:    ", ", ".join(words["safe"]))
 
-    combined = results[TEXT_AND_RULES]["classifier"]
-    rule_weights = combined.coef_[0][-len(features.REASON_IDS) :]
-    print("\n=== rule weights in text + rules (log-odds per fired high-severity rule)")
-    for rid, weight in sorted(
-        zip(features.REASON_IDS, rule_weights), key=lambda x: -x[1]
-    ):
-        print(f"  {rid:22} {weight:+.2f}")
+    saved = results[SAVED_APPROACH]
+    x_train = design_matrix(
+        SAVED_APPROACH,
+        saved["vectorizer"],
+        pick(texts, train_idx),
+        pick(rule_rows, train_idx),
+    )
+    print()
+    print_weight_report(weight_table(saved["vectorizer"], saved["classifier"], x_train))
 
-    best = max(results, key=lambda a: results[a]["f1"])
     artifact = {
-        "approach": best,
-        "vectorizer": results[best]["vectorizer"],
-        "classifier": results[best]["classifier"],
+        "approach": SAVED_APPROACH,
+        "vectorizer": saved["vectorizer"],
+        "classifier": saved["classifier"],
         "rule_ids": features.REASON_IDS,
-        "test_metrics": {
-            k: float(results[best][k]) for k in ("precision", "recall", "f1")
-        },
+        "test_metrics": {k: float(saved[k]) for k in ("precision", "recall", "f1")},
     }
     ARTIFACT_PATH.parent.mkdir(exist_ok=True)
     joblib.dump(artifact, ARTIFACT_PATH, compress=3)
     size_mb = ARTIFACT_PATH.stat().st_size / 1e6
-    print(f"\nbest approach by F1: {best}; saved to {ARTIFACT_PATH} ({size_mb:.1f} MB)")
+    print(f"\nsaved {SAVED_APPROACH} to {ARTIFACT_PATH} ({size_mb:.1f} MB)")
 
 
 if __name__ == "__main__":

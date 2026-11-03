@@ -1,4 +1,5 @@
 import numpy as np
+import pytest
 
 from model.src import train
 from model.src.predict import RULES_ONLY, TEXT_AND_RULES, TEXT_ONLY
@@ -47,3 +48,29 @@ def test_summarise_counts_suspicious_as_flagged():
     result = train.summarise(np.array([1, 0]), ["suspicious", "safe"])
     assert result["confusion"].tolist() == [[1, 0], [0, 1]]
     assert result["precision"] == 1.0 and result["recall"] == 1.0
+
+
+def test_weight_table_computes_typical_push_for_words_and_rules():
+    # Each email three times: the real vectorizer drops words in fewer than 3 emails.
+    texts = ["verify your account now", "verify account", "lunch today", "lunch"] * 3
+    labels = np.array([1, 1, 0, 0] * 3)
+    rule_rows = [[1.0] + [0.0] * 8, [2 / 3] + [0.0] * 8, [0.0] * 9, [0.0] * 9] * 3
+    vectorizer, classifier = train.fit(TEXT_AND_RULES, texts, rule_rows, labels)
+    x = train.design_matrix(TEXT_AND_RULES, vectorizer, texts, rule_rows)
+
+    table = train.weight_table(vectorizer, classifier, x).set_index("input")
+
+    first_rule = f"rule: {train.features.REASON_IDS[0]}"
+    assert len(table) == x.shape[1]
+    assert table.loc[first_rule, "emails"] == 6
+    assert table.loc[first_rule, "typical value"] == pytest.approx((1 + 2 / 3) / 2)
+    assert table.loc[first_rule, "typical push"] == pytest.approx(
+        table.loc[first_rule, "weight"] * (1 + 2 / 3) / 2
+    )
+    assert table.loc["rule: ip_link", "typical push"] == 0  # never fired
+    assert table.loc["verify", "weight"] > 0 > table.loc["lunch", "weight"]
+    assert table["rank"].min() == 1
+
+
+def test_saved_approach_is_text_and_rules():
+    assert train.SAVED_APPROACH == TEXT_AND_RULES

@@ -69,8 +69,8 @@ rule, two medium ones, or a text score over 0.8 without the rules' help.
 | Approach | Precision | Recall | F1 | False positives | Missed phishing |
 | --- | --- | --- | --- | --- | --- |
 | Rules only | 0.925 | 0.719 | 0.809 | 34 | 164 |
-| **Text only** (saved) | **0.991** | **0.979** | **0.985** | 5 | 12 |
-| Text + rules | 0.995 | 0.971 | 0.983 | 3 | 17 |
+| Text only | 0.991 | 0.979 | 0.985 | 5 | 12 |
+| **Text + rules** (saved) | **0.995** | **0.971** | **0.983** | **3** | **17** |
 
 Confusion matrices (rows = true label, columns = prediction):
 
@@ -97,11 +97,50 @@ are rough, but the pattern is clear: marketing email is where false positives wi
 come from. Rules alone flag almost half of it, because urgency and offers ("act now",
 "30 dollar thank you") read like pressure tactics.
 
-**Which approach is saved.** Text only, by F1. It is effectively a tie with text +
-rules (0.985 vs 0.983: 5 vs 3 false positives, 12 vs 17 missed phishing). The rules
-still run on every email and are shown as the reasons in the banner either way.
+**Which approach is saved: text + rules.** Its F1 is a hair lower than text only
+(0.983 vs 0.985, a difference of a few emails), but it was chosen for two reasons:
 
-**Top 20 words of the text model.**
+- **Fewer false positives** (3 vs 5, and 3 vs 4 on hard_ham). For a warning tool,
+  false alarms do the most damage: people learn to ignore the banner. The cost is 5
+  more missed phishing emails out of 584.
+- **Less reliance on the datasets' writing style.** Part of its evidence comes from
+  the rules, which look for phishing tactics rather than style. Compared with the
+  text-only model it puts 12% less weight on conversational style words (it, the,
+  but, think) and 16% less on mailing-list topic words (linux, razor, perl). That's
+  a modest change: the text still provides most of the evidence.
+
+**Does the model actually use the rules? Yes.** A raw weight isn't comparable between a
+rule and a word: a fired rule column is 1 (or 2/3 for medium severity), while a word's
+TF-IDF value in an email is usually around 0.05–0.15. So the table shows each input's
+*typical push*: weight × its usual value when present, i.e. the log-odds it adds to an
+email's score. Rank is out of all 50,548 inputs (50,539 words and word pairs + 9 rules).
+
+| Rule | Weight | Typical push | Rank | Training emails where it fired |
+| --- | --- | --- | --- | --- |
+| urgency | +3.40 | +2.27 | 1 | 1,075 |
+| homoglyphs | +1.96 | +1.96 | 2 | 90 |
+| risky_attachment | +2.52 | +1.75 | 3 | 152 |
+| sender_name_mismatch | +2.44 | +1.72 | 4 | 475 |
+| url_shortener | +2.01 | +1.34 | 5 | 115 |
+| link_text_mismatch | +1.17 | +1.17 | 6 | 163 |
+| lookalike_domain | +1.04 | +1.04 | 7 | 130 |
+| sensitive_request | +0.98 | +0.98 | 8 | 141 |
+| ip_link | −0.14 | −0.14 | 31 | 10 |
+
+For comparison, the strongest text inputs push far less each: "your" +0.36, "account"
++0.31, "document" +0.25 on the phishing side; "razor", "perl", "apt" −0.12 on the safe
+side. Text evidence adds up across many words instead. On phishing test emails the text
+adds +3.15 log-odds on average and the rules +1.85; on safe emails the rules add almost
+nothing (+0.08).
+
+- **Eight rules rank as the eight strongest inputs** in the whole model.
+- **ip_link is effectively unused.** Its weight is near zero (slightly negative)
+  because it fired in only 10 training emails, too few to learn from. It still shows
+  its reason in the banner, but it doesn't move the score.
+- **urgency has the largest weight**, so the safeguard above matters: urgency alone
+  can make an email amber, never red.
+
+**Top 20 words of the text-only model.**
 
 - Phishing: your, account, please, email, you, your account, dear, below, password,
   click, notification, document, update, payment, you have, this email, attached, we,
@@ -113,9 +152,7 @@ The phishing words are genuine phishing language. The safe words show what survi
 cleaning: conversational style (it, but, think) and mailing-list topics (linux, razor,
 the Razor spam filter). Formal, impersonal legitimate email (receipts, alerts) doesn't
 look like either list, which is another reason to expect more false positives there.
-
-In the text + rules model, urgency has the largest rule weight (+3.4 log-odds), which
-is why the "one medium rule can't make it phishing" safeguard matters.
+The saved text + rules model leans on the same words, slightly less.
 
 ## Known limitations
 
