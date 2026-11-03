@@ -1,0 +1,9 @@
+# Tool settings only. This project isn't packaged or published.
+
+[tool.pytest.ini_options]
+# Run tests from the repo root so imports like `from model.src.predict import analyze` work.
+pythonpath = ["."]
+testpaths = ["model/tests", "api/tests"]
+
+[tool.black]
+target-version = ["py311"]
