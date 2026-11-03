@@ -39,7 +39,7 @@ Gmail tab ─> content script (reads the open email)
 
 | Phase | What | Status |
 | ----- | ---- | ------ |
-| 1 | Model: preprocessing, rule-based signals, scikit-learn classifier | In progress (preprocessing done) |
+| 1 | Model: preprocessing, rule-based signals, scikit-learn classifier | In progress (preprocessing and rules done) |
 | 2 | Local API: FastAPI `POST /analyze` and `GET /health` | Not started |
 | 3 | Chrome extension (Manifest V3): Gmail banner and popup | Not started |
 | 4 | Polish: link highlighting, toolbar badge, sensitivity setting, demo GIF | Optional |

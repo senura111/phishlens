@@ -1,4 +1,5 @@
 import mailbox
+import unicodedata
 from email.message import EmailMessage
 
 from model.src import preprocess as pp
@@ -90,7 +91,18 @@ def test_clean_text_removes_copyright_footers_but_not_the_word_copyright():
 def test_is_english():
     assert pp.is_english("Please verify your account within 24 hours")
     assert pp.is_english("Kindly review document")  # no common words, plain ASCII
-    assert pp.is_english("Υοur ΡayΡal accοunt has been limited, please verify it")
+    # English written with Greek look-alike letters is still English.
+    upsilon, omicron, rho = (
+        unicodedata.lookup(f"GREEK {n}")
+        for n in [
+            "CAPITAL LETTER UPSILON",
+            "SMALL LETTER OMICRON",
+            "CAPITAL LETTER RHO",
+        ]
+    )
+    assert pp.is_english(
+        f"{upsilon}{omicron}ur {rho}ay{rho}al acc{omicron}unt has been limited, please verify it"
+    )
     assert pp.is_english("MIT OpenCourseWare looks useful")  # "mit" isn't German here
     assert pp.is_english("Mac OS X release notes")  # "os" isn't Portuguese here
     assert not pp.is_english("Tu cuenta tiene un error de pago por lo cual")
@@ -230,3 +242,8 @@ def test_load_dataset_skips_placeholders_and_cmds_and_removes_duplicates(tmp_pat
     assert sorted(df["source"]) == ["easy_ham", "nazario-2020"]
     assert df.set_index("source").loc["nazario-2020", "label"] == pp.PHISHING
     assert df.set_index("source").loc["easy_ham", "subject"] == "Lunch?"
+
+
+def test_prepare_email_keeps_addresses_in_sender_name():
+    fields = {"sender_name": " service@paypal.com ", "sender_email": "x@evil.ru"}
+    assert pp.prepare_email(fields)["sender_name"] == "service@paypal.com"

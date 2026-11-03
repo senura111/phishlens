@@ -182,6 +182,13 @@ _INVISIBLE_RE = re.compile(r"[\u200b-\u200f\u2028-\u202f\u2060-\u206f\ufeff\u00a
 _SPACES_RE = re.compile(r"\s+")
 
 
+def normalize_text(text: str) -> str:
+    """Unicode normalisation, invisible characters removed, spaces collapsed."""
+    text = unicodedata.normalize("NFKC", text)
+    text = _INVISIBLE_RE.sub("", text)
+    return _SPACES_RE.sub(" ", text).strip()
+
+
 def clean_text(text: str) -> str:
     """Normalise text and remove anything that dates an email."""
     text = unicodedata.normalize("NFKC", text)
@@ -273,7 +280,9 @@ def prepare_email(fields: dict) -> dict:
             links.append(link)
 
     return {
-        "sender_name": clean_text(fields.get("sender_name", "")),
+        # Only normalised: an address or domain in the display name ("service@paypal.com
+        # <x@evil.ru>") is exactly what features.sender_name_mismatch looks for.
+        "sender_name": normalize_text(fields.get("sender_name", "")),
         "sender_email": fields.get("sender_email", "").strip().lower(),
         "subject": clean_subject(fields.get("subject", "")),
         "body_text": clean_text(fields.get("body_text", "")),
