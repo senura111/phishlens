@@ -1,6 +1,8 @@
 # Install into the project virtual environment from the repo root:
 #   .venv\Scripts\python -m pip install -r model/requirements.txt
 # Direct dependencies only; pip resolves their own dependencies (numpy, scipy, ...).
+# numpy and scipy are also imported directly, but they're installed by scikit-learn and
+# left unpinned: their latest versions need Python 3.12+, which would break 3.11.
 
 # Data handling and the classifier
 scikit-learn==1.9.1

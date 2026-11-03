@@ -641,6 +641,20 @@ def find_reasons(email: dict) -> list[dict]:
     return [reason for rule in RULES for reason in rule(email)]
 
 
+SEVERITY_VALUE = {LOW: 1 / 3, MEDIUM: 2 / 3, HIGH: 1.0}
+
+
+def rule_vector(reasons: list[dict]) -> list[float]:
+    """Rule results as model input: one number per REASON_IDS entry, 0 if the rule
+    didn't fire, else its severity (low 1/3, medium 2/3, high 1). Only rule results
+    go in: nothing like "has attachments", which is normal for legitimate email."""
+    values = dict.fromkeys(REASON_IDS, 0.0)
+    for reason in reasons:
+        value = SEVERITY_VALUE[reason["severity"]]
+        values[reason["id"]] = max(values[reason["id"]], value)
+    return [values[rid] for rid in REASON_IDS]
+
+
 # --- Measuring the rules on the dataset ----------------------------------------------
 
 # A rule that fires on more than this share of safe emails would cause false positives.

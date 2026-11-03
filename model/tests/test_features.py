@@ -532,3 +532,25 @@ def test_rules_work_without_the_attachments_field():
     email = make_email(body="Hello")
     assert "attachments" not in email
     assert ft.find_reasons(email) == []
+
+
+# --- rule_vector ---------------------------------------------------------------------
+
+
+def test_rule_vector_uses_severity_and_keeps_the_highest():
+    reasons = [
+        {"id": "urgency", "severity": "medium", "message": ""},
+        {"id": "sender_name_mismatch", "severity": "medium", "message": ""},
+        {"id": "sender_name_mismatch", "severity": "high", "message": ""},
+    ]
+    vector = dict(zip(ft.REASON_IDS, ft.rule_vector(reasons)))
+    assert vector["urgency"] == 2 / 3
+    assert vector["sender_name_mismatch"] == 1.0
+    assert vector["homoglyphs"] == 0.0
+    assert len(ft.rule_vector([])) == len(ft.REASON_IDS)
+
+
+def test_rule_vector_has_no_attachment_count_feature():
+    # Only the risky_attachment rule counts; a safe attachment adds nothing.
+    email = make_email(attachments=["report.pdf", "photo.jpg"])
+    assert ft.rule_vector(ft.find_reasons(email)) == [0.0] * len(ft.REASON_IDS)
