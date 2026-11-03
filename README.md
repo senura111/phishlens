@@ -39,10 +39,36 @@ Gmail tab ─> content script (reads the open email)
 
 | Phase | What | Status |
 | ----- | ---- | ------ |
-| 1 | Model: preprocessing, rule-based signals, scikit-learn classifier | Not started |
+| 1 | Model: preprocessing, rule-based signals, scikit-learn classifier | In progress (preprocessing done) |
 | 2 | Local API: FastAPI `POST /analyze` and `GET /health` | Not started |
 | 3 | Chrome extension (Manifest V3): Gmail banner and popup | Not started |
 | 4 | Polish: link highlighting, toolbar badge, sensitivity setting, demo GIF | Optional |
+
+## Known limitations
+
+The model is trained on public datasets: the
+[Nazario phishing corpus](https://monkey.org/~jose/phishing/) (2015–2025) and the
+[SpamAssassin ham corpus](https://spamassassin.apache.org/old/publiccorpus/) (2002–2003).
+Preprocessing removes signals that only reveal *which dataset* an email came from:
+dates, years, anonymised names, mailing-list footers, quoted replies, copyright
+footers. Some biases can't be cleaned away:
+
+- **Topic bias.** The legitimate emails are mostly 2002-era tech mailing lists (Linux,
+  Perl, spam filtering). Everyday legitimate mail such as bank alerts, receipts,
+  deliveries, and work email is barely represented. Expect more false positives on that
+  kind of mail than the test scores suggest.
+- **English only.** All the legitimate emails are in English, so non-English phishing
+  would teach the model "foreign language = phishing". v1 drops non-English emails
+  from training (158 phishing, 8 legitimate). Results on non-English email are not
+  reliable.
+- **Brand clusters.** Many phishing emails copy real brand templates (USAA, DocuSign,
+  WeTransfer, Google), and there are no genuine emails from those brands in the
+  legitimate set. The model may treat a brand's name or footer as a phishing sign. To
+  keep test scores honest, near-duplicate campaigns are kept together on one side of
+  the train/test split.
+
+After changing preprocessing, re-check for shortcuts with
+`python -m model.src.audit_shortcuts`.
 
 ## Project layout
 

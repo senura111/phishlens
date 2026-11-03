@@ -160,8 +160,25 @@ _DATE_PATTERNS = [
 ]
 DATE_RE = re.compile("|".join(_DATE_PATTERNS), re.IGNORECASE)
 
+# Copyright footers: "© 2024 PayPal, Inc.", "Copyright (c) 2002 CNET", "All rights
+# reserved". Real legitimate email has them too, but in the training data they are
+# mostly in modern phishing (copied brand templates), so the model would learn
+# "corporate footer = phishing" and flag real newsletters. Each match stops at the end
+# of the line or sentence, so text that happens to share the line is kept.
+_COPYRIGHT_RE = re.compile(
+    "|".join(
+        [
+            rf"\bcopyright\b\s*(?:(?:\(c\)|©)\s*)?(?:{_YEAR}\b|by\b)[^\n.|]{{0,80}}",
+            rf"\(c\)\s*{_YEAR}\b[^\n.|]{{0,80}}",
+            r"©[^\n.|]{0,80}",
+            r"\ball\s+rights\s+reserved\b\.?",
+        ]
+    ),
+    re.IGNORECASE,
+)
+
 # Zero-width characters and other invisible formatting characters.
-_INVISIBLE_RE = re.compile(r"[​-‏ - ⁠-⁯﻿­]")
+_INVISIBLE_RE = re.compile(r"[\u200b-\u200f\u2028-\u202f\u2060-\u206f\ufeff\u00ad]")
 _SPACES_RE = re.compile(r"\s+")
 
 
@@ -174,6 +191,7 @@ def clean_text(text: str) -> str:
     # link text, so even a placeholder word would hint at the email's age.
     text = URL_RE.sub(" ", text)
     text = EMAIL_RE.sub(" ", text)
+    text = _COPYRIGHT_RE.sub(" ", text)  # before dates: it uses the year to match
     text = DATE_RE.sub(" ", text)
     return _SPACES_RE.sub(" ", text).strip()
 
@@ -189,6 +207,50 @@ _REPLY_PREFIX_RE = re.compile(r"^\s*(?:(?:re|fwd?|aw|sv)\s*(?:\[\d+\])?\s*:\s*)+
 def clean_subject(subject: str) -> str:
     subject = _SUBJECT_TAG_RE.sub(" ", subject)
     return clean_text(_REPLY_PREFIX_RE.sub("", subject.strip()))
+
+
+# v1 is English-only: all the ham is English, so non-English phishing would just teach
+# the model "foreign language = phishing". The check is deliberately simple. Text that
+# is mostly non-Latin letters (Chinese, Arabic, Cyrillic...) is not English. Otherwise
+# compare very common English words with very common words from other European
+# languages (chosen so none of them is also an English word).
+_LETTERS_RE = re.compile(r"[^\W\d_]+")
+_ENGLISH_WORDS = frozenset(
+    "the and you your to of is for this that with are be on please we our have will "
+    "not it in".split()
+)
+_OTHER_LANGUAGE_WORDS = frozenset(
+    (
+        # Left out on purpose: "os" (Mac OS), "mit" (MIT), "en" (paths like /en/).
+        "de "  # shared by several of the languages below
+        "el la los las del que por para con una es su sus usted "  # Spanish
+        "não você seu sua uma das dos "  # Portuguese
+        "le les des est vous votre pour une dans sur pas "  # French
+        "der das und ist sie ihr ihre nicht auf ein eine wir sich "  # German
+        "il di che della sono gli "  # Italian
+        "het een van uw niet je "  # Dutch
+        "az és hogy nem egy ön önnek kérjük"  # Hungarian
+    ).split()
+)
+MIN_LATIN_SHARE = 0.8
+# With no common words from either list (short texts like "Kindly review document"),
+# fall back to "almost every letter is plain ASCII".
+MIN_ASCII_SHARE_NO_WORDS = 0.97
+
+
+def is_english(text: str) -> bool:
+    words = [w.lower() for w in _LETTERS_RE.findall(text)]
+    letters = "".join(words)
+    if not letters:
+        return False
+    ascii_share = sum(c.isascii() for c in letters) / len(letters)
+    if ascii_share < MIN_LATIN_SHARE:
+        return False
+    english = sum(w in _ENGLISH_WORDS for w in words)
+    other = sum(w in _OTHER_LANGUAGE_WORDS for w in words)
+    if english == other == 0:
+        return ascii_share >= MIN_ASCII_SHARE_NO_WORDS
+    return english >= other
 
 
 def _bare_url_links(text: str) -> list[dict]:
@@ -432,6 +494,11 @@ def build_table(
     stats["conflicting_labels"] = int(conflicting.sum())
     df = df[~conflicting].drop_duplicates("_key")
     stats["duplicates"] = before - stats["conflicting_labels"] - len(df)
+
+    english = (df["subject"] + " " + df["body_text"]).map(is_english)
+    stats["non_english_phishing"] = int((~english & (df["label"] == PHISHING)).sum())
+    stats["non_english_safe"] = int((~english & (df["label"] == SAFE)).sum())
+    df = df[english]
 
     return df.drop(columns="_key").reset_index(drop=True), stats
 

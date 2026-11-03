@@ -72,8 +72,32 @@ def test_clean_text_keeps_ordinary_words_and_urgency_phrases():
 
 
 def test_clean_text_removes_urls_emails_and_invisible_characters():
-    text = "Log in at https://paypa1.com/x or write to help@paypa1.com pay​pal"
+    text = "Log in at https://paypa1.com/x or write to help@paypa1.com pay\u200bpal"
     assert pp.clean_text(text) == "Log in at or write to paypal"
+
+
+def test_clean_text_removes_copyright_footers_but_not_the_word_copyright():
+    footer = "Thanks for shopping.\n© 2024 PayPal, Inc. All rights reserved.\nBye"
+    assert pp.clean_text(footer) == "Thanks for shopping. . Bye"
+    assert pp.clean_text("Copyright (c) 2002 CNET Networks") == ""
+    assert pp.clean_text("Copyright 1997-2002 pudge.") == "."
+    assert pp.clean_text("Copyright law is broken") == "Copyright law is broken"
+    assert pp.clean_text("Ltd. All rights\nreserved. Bye") == "Ltd. Bye"
+    # On a single line (no line breaks), only the footer phrase goes.
+    assert pp.clean_text("Pay now © Acme Ltd | Help") == "Pay now | Help"
+
+
+def test_is_english():
+    assert pp.is_english("Please verify your account within 24 hours")
+    assert pp.is_english("Kindly review document")  # no common words, plain ASCII
+    assert pp.is_english("Υοur ΡayΡal accοunt has been limited, please verify it")
+    assert pp.is_english("MIT OpenCourseWare looks useful")  # "mit" isn't German here
+    assert pp.is_english("Mac OS X release notes")  # "os" isn't Portuguese here
+    assert not pp.is_english("Tu cuenta tiene un error de pago por lo cual")
+    assert not pp.is_english("Ihr Paket wartet auf die Lieferung und ist")
+    assert not pp.is_english("Fontos: Frissítse fizetési adatait")  # Hungarian
+    assert not pp.is_english("お支払い方法の情報を更新してください")
+    assert not pp.is_english("")
 
 
 def test_clean_subject_strips_list_tags_and_reply_prefixes():
@@ -187,6 +211,7 @@ def test_load_dataset_skips_placeholders_and_cmds_and_removes_duplicates(tmp_pat
     phish = make_email(subject="Account suspended", plain="Verify your password now.")
     box.add(phish)
     box.add(phish)  # duplicate
+    box.add(make_email(subject="Tu cuenta", plain="Tu cuenta tiene un error de pago."))
     box.flush()
 
     for folder in pp.HAM_FOLDERS:
@@ -201,6 +226,7 @@ def test_load_dataset_skips_placeholders_and_cmds_and_removes_duplicates(tmp_pat
     assert list(df.columns) == pp.COLUMNS
     assert stats["placeholder"] == 1
     assert stats["duplicates"] == 1
+    assert stats["non_english_phishing"] == 1 and stats["non_english_safe"] == 0
     assert sorted(df["source"]) == ["easy_ham", "nazario-2020"]
     assert df.set_index("source").loc["nazario-2020", "label"] == pp.PHISHING
     assert df.set_index("source").loc["easy_ham", "subject"] == "Lunch?"

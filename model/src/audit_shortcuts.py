@@ -39,7 +39,9 @@ LEFTOVER_TOKENS = {
     "years": r"\b(?:19|20)\d\d\b",
     "'url' / 'date' labels": r"\burl\b|\bdate\b",
     "'wrote:' reply lines": r"\bwrote:",
-    "copyright sign": r"©",
+    "copyright footers (©, all rights reserved)": r"©|\(c\)|all rights reserved",
+    "the word 'copyright'": r"\bcopyright\b",
+    "'rights' / 'reserved'": r"\brights\b|\breserved\b",
 }
 
 
