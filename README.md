@@ -64,20 +64,22 @@ The text model reads the subject and body only (TF-IDF of words and word pairs, 
 only). An email is *flagged* when its verdict is phishing (score ≥ 0.8) or suspicious
 (0.5–0.8), i.e. when it would get a red or amber banner. A single medium-severity rule
 (such as urgency) can't make an email "phishing" on its own: that needs a high-severity
-rule, two medium ones, or a text score over 0.8 without the rules' help.
+rule, two medium ones, or a text score over 0.8 without the rules' help. Two rules,
+ip_link and homoglyphs, lift any score to at least "suspicious" (see
+[the floor](#the-suspicious-floor-ip_link-and-homoglyphs-only) below).
 
 | Approach | Precision | Recall | F1 | False positives | Missed phishing |
 | --- | --- | --- | --- | --- | --- |
-| Rules only | 0.925 | 0.719 | 0.809 | 34 | 164 |
-| Text only | 0.991 | 0.979 | 0.985 | 5 | 12 |
-| **Text + rules** (saved) | **0.995** | **0.971** | **0.983** | **3** | **17** |
+| Rules only | 0.925 | 0.721 | 0.810 | 34 | 163 |
+| Text only | 0.988 | 0.981 | 0.985 | 7 | 11 |
+| **Text + rules** (saved) | **0.991** | **0.971** | **0.981** | **5** | **17** |
 
 Confusion matrices (rows = true label, columns = prediction):
 
 | | Rules only: flagged | not flagged | Text only: flagged | not flagged | Text + rules: flagged | not flagged |
 | --- | --- | --- | --- | --- | --- | --- |
-| Phishing | 420 | 164 | 572 | 12 | 567 | 17 |
-| Safe | 34 | 741 | 5 | 770 | 3 | 772 |
+| Phishing | 421 | 163 | 573 | 11 | 567 | 17 |
+| Safe | 34 | 741 | 7 | 768 | 5 | 770 |
 
 No safe test email got a red "phishing" verdict from the text or text + rules
 models; all their false positives were amber "suspicious".
@@ -87,21 +89,22 @@ models; all their false positives were amber "suspicious".
 
 | Source | Safe test emails | Rules only | Text only | Text + rules |
 | --- | --- | --- | --- | --- |
-| easy_ham | 462 | 9 (1.9%) | 0 (0.0%) | 0 (0.0%) |
+| easy_ham | 462 | 9 (1.9%) | 1 (0.2%) | 1 (0.2%) |
 | easy_ham_2 | 264 | 3 (1.1%) | 1 (0.4%) | 0 (0.0%) |
-| **hard_ham** | **49** | **22 (44.9%)** | **4 (8.2%)** | **3 (6.1%)** |
+| **hard_ham** | **49** | **22 (44.9%)** | **5 (10.2%)** | **4 (8.2%)** |
 
-The hard_ham false positives are promotions: a software release announcement, an
-online-store offer, a SourceForge update. With only 49 hard_ham test emails these rates
+The hard_ham false positives are promotions (a software release announcement, an
+online-store offer, a SourceForge update) plus one Linux-Announce digest with a raw-IP
+link, flagged by the floor. With only 49 hard_ham test emails these rates
 are rough, but the pattern is clear: marketing email is where false positives will
 come from. Rules alone flag almost half of it, because urgency and offers ("act now",
 "30 dollar thank you") read like pressure tactics.
 
 **Which approach is saved: text + rules.** Its F1 is a hair lower than text only
-(0.983 vs 0.985, a difference of a few emails), but it was chosen for two reasons:
+(0.981 vs 0.985, a difference of a few emails), but it was chosen for two reasons:
 
-- **Fewer false positives** (3 vs 5, and 3 vs 4 on hard_ham). For a warning tool,
-  false alarms do the most damage: people learn to ignore the banner. The cost is 5
+- **Fewer false positives** (5 vs 7, and 4 vs 5 on hard_ham). For a warning tool,
+  false alarms do the most damage: people learn to ignore the banner. The cost is 6
   more missed phishing emails out of 584.
 - **Less reliance on the datasets' writing style.** Part of its evidence comes from
   the rules, which look for phishing tactics rather than style. Compared with the
@@ -134,11 +137,42 @@ adds +3.15 log-odds on average and the rules +1.85; on safe emails the rules add
 nothing (+0.08).
 
 - **Eight rules rank as the eight strongest inputs** in the whole model.
-- **ip_link is effectively unused.** Its weight is near zero (slightly negative)
-  because it fired in only 10 training emails, too few to learn from. It still shows
-  its reason in the banner, but it doesn't move the score.
+- **ip_link is effectively unused by the model.** Its weight is near zero (slightly
+  negative) because it fired in only 10 training emails, too few to learn from. The
+  floor below covers it instead.
 - **urgency has the largest weight**, so the safeguard above matters: urgency alone
   can make an email amber, never red.
+
+### The "suspicious" floor (ip_link and homoglyphs only)
+
+Some rules are strong phishing signs that the model can't weigh properly, ip_link
+because it's too rare in the data. So a fired **ip_link** or **homoglyphs** rule lifts
+the verdict to at least "suspicious" (amber), whatever the score. It never makes an
+email "phishing" (red) on its own; only the model can do that.
+
+A floor for *every* high-severity rule was tried first and rejected. On the test set
+(saved model):
+
+| Floor applies to | Safe emails turned amber | Missed phishing caught |
+| --- | --- | --- |
+| All high-severity rules (rejected) | 23 of 775 (3.0%), incl. 17 of 49 hard_ham | 0 of 17 |
+| **ip_link and homoglyphs** (used) | **2 of 775 (0.3%)** | **0 of 17** |
+
+The broad version mostly hit newsletters: CNET mail named "NEWS.COM" sent from
+`newsletter.online.com` (sender_name_mismatch), links showing one domain and going to
+another (link_text_mismatch), and an Outlook add-on site `outlook.4team.biz`
+(lookalike_domain). Modern marketing email does the same things, so it would likely
+be worse on a real inbox. homoglyphs never fires on safe email, and ip_link fired on
+just 2 safe test emails (a news story and a Linux-Announce digest, both linking to a
+raw IP address).
+
+The narrow floor catches no extra phishing on this test set: all 17 missed phishing
+emails trigger neither rule. It's there as a safety net for real-world phishing the
+training data barely covers, at the cost of 2 false ambers. (For the text-only model
+it would have caught 1 homoglyph email.)
+
+In the extension, reasons on a "safe" email are shown as collapsed grey "minor notes",
+not warnings, so a lone rule hit on a legitimate newsletter doesn't look alarming.
 
 **Top 20 words of the text-only model.**
 

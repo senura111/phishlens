@@ -50,7 +50,7 @@ from model.src.predict import (
 )
 
 ARTIFACT_PATH = Path(__file__).resolve().parents[1] / "artifacts" / "phishlens.joblib"
-# Chosen over "text only" although its F1 was a hair lower (0.983 vs 0.985): it made
+# Chosen over "text only" although its F1 was a hair lower (0.981 vs 0.985): it made
 # fewer false positives and leans less on the datasets' writing style, because part of
 # its evidence comes from the rules, which look for phishing tactics, not style.
 SAVED_APPROACH = TEXT_AND_RULES

@@ -17,6 +17,12 @@ PHISHING, SUSPICIOUS, SAFE = "phishing", "suspicious", "safe"
 PHISHING_THRESHOLD = 0.8
 SUSPICIOUS_THRESHOLD = 0.5
 
+# Rules that make an email at least "suspicious" whatever its score. Only rules that
+# (almost) never fire on legitimate mail qualify: on the test set a floor for every
+# high-severity rule turned 3% of safe emails amber and caught no extra phishing.
+# ip_link fires too rarely for the model to learn its weight (10 training emails).
+FLOOR_RULES = {"ip_link", "homoglyphs"}
+
 RULES_ONLY, TEXT_ONLY, TEXT_AND_RULES = "rules only", "text only", "text + rules"
 APPROACHES = (RULES_ONLY, TEXT_ONLY, TEXT_AND_RULES)
 
@@ -53,9 +59,12 @@ def decide_verdict(
     "phishing": real companies write "action required" too. "phishing" needs a
     high-severity rule, two or more medium ones, or a text score that reaches the
     phishing threshold without help from the rules. Otherwise it stays "suspicious".
+
+    A FLOOR_RULES reason lifts a low score to "suspicious", never to "phishing".
     """
     if score < SUSPICIOUS_THRESHOLD:
-        return SAFE
+        floor = any(reason["id"] in FLOOR_RULES for reason in reasons)
+        return SUSPICIOUS if floor else SAFE
     if score < PHISHING_THRESHOLD:
         return SUSPICIOUS
     severities = [reason["severity"] for reason in reasons]

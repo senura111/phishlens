@@ -111,6 +111,10 @@ pass. At the end of each phase, update the README with what was built and how to
   clear "server not running" state instead of failing silently.
 - Banner above the email body: red = phishing, amber = suspicious, green = safe. Expandable
   list of reasons, dismiss button. Offline state shows a neutral grey banner.
+- When the verdict is "safe", show any reasons as collapsed grey "minor notes", not as
+  warnings. A lone rule hit on a safe email is usually harmless (a newsletter's
+  click-tracking link, a brand name sent from an email-service domain), and warning
+  styling there would teach users to ignore the banner.
 - Popup: API status (via /health), short explanation, link to the GitHub repo.
 - Load for testing: chrome://extensions → Developer mode → Load unpacked → `extension/`
 

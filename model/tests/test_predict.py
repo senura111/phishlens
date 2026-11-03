@@ -56,3 +56,29 @@ def test_design_matrix_shapes_and_without_rules():
 def test_email_text_is_subject_and_body_only():
     email = {"sender_name": "PayPal", "subject": "Hi", "body_text": "there"}
     assert pr.email_text(email) == "Hi there"
+
+
+# --- Floor rules: ip_link and homoglyphs ---------------------------------------------
+
+IP_LINK = {"id": "ip_link", "severity": "high", "message": "..."}
+HOMOGLYPHS = {"id": "homoglyphs", "severity": "high", "message": "..."}
+
+
+@pytest.mark.parametrize("reason", [IP_LINK, HOMOGLYPHS])
+def test_floor_rule_lifts_a_low_score_to_suspicious(reason):
+    assert pr.decide_verdict(0.05, [reason], score_without_rules=0.05) == "suspicious"
+
+
+@pytest.mark.parametrize("reason", [IP_LINK, HOMOGLYPHS])
+def test_floor_rule_never_goes_straight_to_phishing(reason):
+    # A low or borderline score stays suspicious; only the model can reach phishing.
+    assert pr.decide_verdict(0.05, [reason], score_without_rules=0.05) != "phishing"
+    assert pr.decide_verdict(0.6, [reason], score_without_rules=0.6) == "suspicious"
+
+
+def test_other_high_severity_rules_do_not_lift_a_low_score():
+    assert pr.decide_verdict(0.05, [LOOKALIKE], score_without_rules=0.05) == "safe"
+
+
+def test_floor_rules_are_only_ip_link_and_homoglyphs():
+    assert pr.FLOOR_RULES == {"ip_link", "homoglyphs"}
