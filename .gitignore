@@ -1,0 +1,42 @@
+# --- Datasets (never commit; see model/data/README.md) ---
+model/data/*
+!model/data/README.md
+*.mbox
+
+# --- Trained model files (rebuild with model/src/train.py) ---
+model/artifacts/*
+!model/artifacts/.gitkeep
+*.joblib
+*.pkl
+
+# --- Secrets ---
+.env
+.env.*
+*.pem
+*.key
+
+# --- Python ---
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.pytest_cache/
+.mypy_cache/
+.coverage
+htmlcov/
+*.egg-info/
+.ipynb_checkpoints/
+
+# --- Chrome extension packaging ---
+*.crx
+*.zip
+
+# --- Editors / OS ---
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# --- Claude Code local settings ---
+.claude/settings.local.json
