@@ -5,7 +5,8 @@ Each rule looks at one email and, if it fires, returns a reason:
 The messages are shown to the user in the Gmail banner, so they must be plain and specific.
 
 Rules expect an email already cleaned by preprocess.prepare_email(): sender_name,
-sender_email, subject, body_text, and links (each {"text": ..., "href": ...}).
+sender_email, subject, body_text, links (each {"text": ..., "href": ...}), and the
+optional attachments (a list of file names).
 Everything in an email is attacker-controlled, so messages quote it only in short,
 truncated pieces, and the extension must display them with textContent.
 
@@ -544,33 +545,68 @@ _FILE_NAME_RE = re.compile(
 _PATH_WORD_RE = re.compile(r"\S*/\S*")
 
 
+# "Invoice.pdf.exe": a harmless-looking extension in front of a risky one. Windows
+# hides known extensions by default, so the user only sees "Invoice.pdf".
+_DECOY_FILE_TYPES = {"pdf", "doc", "docx", "xls", "xlsx", "txt", "jpg", "jpeg", "png"}
+
+
+def _risky_type(file_name: str) -> str | None:
+    """The risky extension of a file name ("Scan.ZIP" -> "zip"), or None."""
+    ext = file_name.rsplit(".", 1)[-1].lower() if "." in file_name else ""
+    return ext if ext in RISKY_FILE_TYPES else None
+
+
+def _decoy_type(file_name: str) -> str | None:
+    """The decoy extension ("Invoice.pdf.exe" -> "pdf"), or None if there isn't one."""
+    parts = file_name.lower().rsplit(".", 2)
+    return parts[1] if len(parts) == 3 and parts[1] in _DECOY_FILE_TYPES else None
+
+
 def risky_attachment(email: dict) -> list[dict]:
-    """Mentions or links a file type that is often used to deliver malware."""
+    """Has an attachment, mentions a file, or links a download of a type that is often
+    used to deliver malware. Real attachments (from the optional "attachments" field)
+    count more than names mentioned in the text."""
+    found = []  # (file name, extension, is a real attachment)
+    for name in email.get("attachments") or []:
+        if ext := _risky_type(name):
+            found.append((name, ext, True))
+
     texts = [email.get("subject", ""), email.get("body_text", "")]
     texts += [link["text"] for link in email.get("links", [])]
-    files = [
-        (m.group(), m.group(1).lower())
-        for t in texts
-        for m in _FILE_NAME_RE.finditer(_PATH_WORD_RE.sub(" ", t))
-    ]
+    for text in texts:
+        for m in _FILE_NAME_RE.finditer(_PATH_WORD_RE.sub(" ", text)):
+            found.append((m.group(), m.group(1).lower(), False))
     for link in email.get("links", []):
         path = urlsplit(link["href"]).path if "://" in link["href"] else ""
         name = path.rsplit("/", 1)[-1]
-        if (m := _FILE_NAME_RE.fullmatch(name)) and m.group(
-            1
-        ).lower() not in _NOT_RISKY_IN_LINKS:
-            files.append((name, m.group(1).lower()))
-    if not files:
+        ext = _risky_type(name) if _FILE_NAME_RE.fullmatch(name) else None
+        if ext and ext not in _NOT_RISKY_IN_LINKS:
+            found.append((name, ext, False))
+    if not found:
         return []
 
-    # Report the most dangerous file found.
-    name, ext = max(files, key=lambda f: RISKY_FILE_TYPES[f[1]][0] == HIGH)
+    # Report the most dangerous file: disguised, then high severity, then a real
+    # attachment over a mention.
+    def danger(item):
+        name, ext, is_attachment = item
+        return (
+            bool(_decoy_type(name)),
+            RISKY_FILE_TYPES[ext][0] == HIGH,
+            is_attachment,
+        )
+
+    name, ext, is_attachment = max(found, key=danger)
     severity, why = RISKY_FILE_TYPES[ext]
-    return _summarise(
-        "risky_attachment",
-        severity,
-        [f"Mentions the file '{quote(name)}', which is risky: {why}"],
-    )
+    where = "Has the attachment" if is_attachment else "Mentions the file"
+    if decoy := _decoy_type(name):
+        severity = HIGH
+        message = (
+            f"{where} '{quote(name)}', which pretends to be a .{decoy} but is really "
+            f"a .{ext}: {why}"
+        )
+    else:
+        message = f"{where} '{quote(name)}', which is risky: {why}"
+    return _summarise("risky_attachment", severity, [message])
 
 
 # --- All rules -----------------------------------------------------------------------

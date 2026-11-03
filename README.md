@@ -20,7 +20,8 @@ Gmail tab ─> content script (reads the open email)
 ```
 
 1. When you open an email, the extension reads what Gmail shows on the page: sender name and
-   address, subject, body text, and links (visible text and the real destination).
+   address, subject, body text, links (visible text and the real destination), and
+   attachment file names. Attachments themselves are never downloaded or opened.
 2. It sends that to a FastAPI server running locally on `127.0.0.1`.
 3. The server combines rule-based checks (lookalike domains, mismatched links, urgency
    phrases, requests for passwords or gift cards, and more) with a TF-IDF + Logistic

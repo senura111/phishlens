@@ -39,6 +39,7 @@ COLUMNS = [
     "subject",
     "body_text",
     "links",
+    "attachments",
     "label",
     "source",
 ]
@@ -96,13 +97,32 @@ def html_to_text_and_links(html: str) -> tuple[str, list[dict]]:
 _LOOKS_LIKE_HTML_RE = re.compile(r"<(?:html|body|div|table|p|br|span|img|a)\b", re.I)
 
 
+def _attachment_name(part: EmailMessage) -> str:
+    """The file name Gmail would show for this part, or ''. Only the MIME header is
+    read; the attachment's content is never decoded. Inline images (pictures inside
+    the email body) are not shown as attachments, so they're skipped."""
+    try:
+        name = part.get_filename() or ""
+    except Exception:  # noqa: BLE001 - a malformed header just means "no name"
+        return ""
+    inline_image = (
+        part.get_content_maintype() == "image"
+        and part.get_content_disposition() != "attachment"
+    )
+    return "" if inline_image else name.strip()
+
+
 def extract_fields(msg: EmailMessage) -> dict:
     """Pull out only what Gmail shows on the page. Attachments are never decoded."""
     sender_name, sender_email = parseaddr(_header(msg, "From"))
 
-    html_parts, plain_parts = [], []
+    html_parts, plain_parts, attachments = [], [], []
     for part in msg.walk():
-        if part.is_multipart() or part.is_attachment():
+        if part.is_multipart():
+            continue
+        if name := _attachment_name(part):
+            attachments.append(name)
+        if part.is_attachment():
             continue
         if part.get_content_type() == "text/html":
             html_parts.append(_part_text(part))
@@ -125,6 +145,7 @@ def extract_fields(msg: EmailMessage) -> dict:
         "subject": _header(msg, "Subject"),
         "body_text": body_text,
         "links": links,
+        "attachments": attachments,
     }
 
 
@@ -287,6 +308,14 @@ def prepare_email(fields: dict) -> dict:
         "subject": clean_subject(fields.get("subject", "")),
         "body_text": clean_text(fields.get("body_text", "")),
         "links": links,
+        # Optional in the API: names only, in order, without blanks or repeats.
+        "attachments": list(
+            dict.fromkeys(
+                name
+                for name in map(normalize_text, fields.get("attachments") or [])
+                if name
+            )
+        ),
     }
 
 
@@ -316,8 +345,9 @@ _CORPUS_ARTIFACTS = re.compile(
     ),
     re.IGNORECASE,
 )
-# In links the anonymised recipient is replaced rather than deleted, so URLs stay
-# parseable for the rules (e.g. "http://login.monkey.org.evil.com/#jose@monkey.org").
+# In links and attachment names the anonymised recipient is replaced rather than
+# deleted, so URLs stay parseable for the rules and file names keep their shape
+# (e.g. "http://login.monkey.org.evil.com/#jose@monkey.org").
 _LINK_ARTIFACTS = [
     (re.compile(pattern, re.IGNORECASE), replacement)
     for pattern, replacement in [
@@ -373,13 +403,17 @@ def remove_corpus_artifacts(fields: dict) -> dict:
     for key in ("sender_name", "subject", "body_text"):
         cleaned[key] = _CORPUS_ARTIFACTS.sub("", cleaned[key])
     cleaned["links"] = [
-        {key: _scrub_link(value) for key, value in link.items()}
+        {key: _scrub_replacing(value) for key, value in link.items()}
         for link in fields["links"]
+    ]
+    # Attachment names like "jose@monkey.org_invoice.html" keep their extension.
+    cleaned["attachments"] = [
+        _scrub_replacing(name) for name in fields.get("attachments", [])
     ]
     return cleaned
 
 
-def _scrub_link(value: str) -> str:
+def _scrub_replacing(value: str) -> str:
     for pattern, replacement in _LINK_ARTIFACTS:
         value = pattern.sub(replacement, value)
     return value

@@ -6,15 +6,23 @@ from model.src import features as ft
 
 
 def make_email(
-    sender_name="", sender_email="someone@example.org", subject="", body="", links=()
+    sender_name="",
+    sender_email="someone@example.org",
+    subject="",
+    body="",
+    links=(),
+    attachments=None,
 ):
-    return {
+    email = {
         "sender_name": sender_name,
         "sender_email": sender_email,
         "subject": subject,
         "body_text": body,
         "links": [{"text": text, "href": href} for text, href in links],
     }
+    if attachments is not None:  # optional in the API: usually left out
+        email["attachments"] = list(attachments)
+    return email
 
 
 def ids(reasons):
@@ -467,3 +475,60 @@ def test_risky_attachment_ignores_web_pages_in_urls():
 def test_risky_attachment_ignores_file_names_in_comma_separated_url_paths():
     body = "See www.zdnet.com/anchordesk/stories/story/0,10738,2880386,00.html"
     assert ft.risky_attachment(make_email(body=body)) == []
+
+
+# --- Rule 8 with the optional attachments field --------------------------------------
+
+
+@pytest.mark.parametrize(
+    "name, severity",
+    [
+        ("Invoice_2291.exe", "high"),
+        ("Payroll.DOCM", "high"),  # extension case doesn't matter
+        ("Scanned copy.zip", "medium"),
+        ("Remittance.html", "medium"),  # .html counts as a real attachment
+    ],
+)
+def test_risky_attachment_uses_attachment_names(name, severity):
+    reasons = ft.risky_attachment(make_email(attachments=[name]))
+    assert ids(reasons) == ["risky_attachment"]
+    assert reasons[0]["severity"] == severity
+    assert reasons[0]["message"].startswith(
+        f"Has the attachment '{name}', which is risky"
+    )
+
+
+def test_risky_attachment_flags_disguised_double_extensions_as_high():
+    reasons = ft.risky_attachment(make_email(attachments=["Invoice.pdf.zip"]))
+    assert reasons == [
+        {
+            "id": "risky_attachment",
+            "severity": "high",
+            "message": "Has the attachment 'Invoice.pdf.zip', which pretends to be a "
+            ".pdf but is really a .zip: archives and disk images can hide malware",
+        }
+    ]
+
+
+def test_risky_attachment_prefers_real_attachments_over_mentions():
+    email = make_email(body="Details in notes.zip", attachments=["photos.zip"])
+    assert "'photos.zip'" in ft.risky_attachment(email)[0]["message"]
+
+
+def test_risky_attachment_reports_the_most_dangerous_attachment():
+    email = make_email(attachments=["photos.zip", "setup.exe", "report.pdf"])
+    reason = ft.risky_attachment(email)[0]
+    assert reason["severity"] == "high" and "'setup.exe'" in reason["message"]
+
+
+@pytest.mark.parametrize(
+    "attachments", [[], ["report.pdf", "photo.jpg", "notes.docx"], ["README"]]
+)
+def test_risky_attachment_ignores_safe_or_missing_attachments(attachments):
+    assert ft.risky_attachment(make_email(attachments=attachments)) == []
+
+
+def test_rules_work_without_the_attachments_field():
+    email = make_email(body="Hello")
+    assert "attachments" not in email
+    assert ft.find_reasons(email) == []

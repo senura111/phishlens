@@ -72,7 +72,8 @@ pass. At the end of each phase, update the README with what was built and how to
 - Data: combine a phishing corpus (e.g. Nazario) with legitimate emails (e.g. SpamAssassin ham or
   Enron). Raw data is gitignored; `model/data/README.md` explains where to get it.
 - IMPORTANT: use only inputs the extension can actually read from Gmail's page: sender name,
-  sender address, subject, body text, and links (visible text + real href). Ignore raw headers
+  sender address, subject, body text, links (visible text + real href), and attachment file
+  names. Ignore raw headers
   (SPF/DKIM, Received) in v1. The extension can't see them, so the model must not depend on them.
 - Rule-based signals in `features.py`, each producing a human-readable reason:
   - lookalike / misspelled brand domains (paypa1.com)
@@ -103,7 +104,8 @@ pass. At the end of each phase, update the README with what was built and how to
 - Content scripts can't use ES module imports, so list them in order in the manifest
   (selectors.js, banner.js, gmail.js).
 - Gmail is a single-page app: use a MutationObserver to detect when an email is opened. Extract
-  sender name/address, subject, body text, and links, then send them to the service worker with
+  sender name/address, subject, body text, links, and attachment file names (names only, never
+  download or open attachments), then send them to the service worker with
   `chrome.runtime.sendMessage`.
 - The service worker calls the API and returns the result. If the API is offline, return a
   clear "server not running" state instead of failing silently.
@@ -126,9 +128,13 @@ pass. At the end of each phase, update the README with what was built and how to
   "sender_email": "support@paypa1-secure.com",
   "subject": "Your account will be suspended",
   "body_text": "...",
-  "links": [{ "text": "paypal.com/login", "href": "http://185.22.10.4/login" }]
+  "links": [{ "text": "paypal.com/login", "href": "http://185.22.10.4/login" }],
+  "attachments": ["Invoice_2291.pdf.exe"]
 }
 ```
+`attachments` is optional: a list of attachment file names as Gmail shows them (names only,
+never file contents). Missing or empty means no attachments are known.
+
 Response:
 ```json
 {

@@ -247,3 +247,49 @@ def test_load_dataset_skips_placeholders_and_cmds_and_removes_duplicates(tmp_pat
 def test_prepare_email_keeps_addresses_in_sender_name():
     fields = {"sender_name": " service@paypal.com ", "sender_email": "x@evil.ru"}
     assert pp.prepare_email(fields)["sender_name"] == "service@paypal.com"
+
+
+# --- Attachment names ----------------------------------------------------------------
+
+
+def test_extract_fields_reads_attachment_names_without_their_content():
+    msg = make_email(plain="See attached.")
+    msg.add_attachment(
+        b"MZ fake program",
+        maintype="application",
+        subtype="octet-stream",
+        filename="Invoice.pdf.exe",
+    )
+    msg.add_attachment(
+        b"%PDF fake", maintype="application", subtype="pdf", filename="report.pdf"
+    )
+    fields = pp.extract_fields(msg)
+    assert fields["attachments"] == ["Invoice.pdf.exe", "report.pdf"]
+    assert "MZ fake program" not in fields["body_text"]
+
+
+def test_extract_fields_skips_inline_images():
+    msg = make_email(html='<p>Hi <img src="cid:logo"></p>')
+    msg.add_related(
+        b"\x89PNG fake",
+        maintype="image",
+        subtype="png",
+        cid="<logo>",
+        disposition="inline",  # how real emails mark pictures in the body
+        filename="logo.png",
+    )
+    assert pp.extract_fields(msg)["attachments"] == []
+
+
+def test_prepare_email_attachments_are_optional_and_cleaned():
+    assert pp.prepare_email({"body_text": "hi"})["attachments"] == []
+    fields = {"attachments": [" scan.zip ", "", "scan.zip", "a.pdf"]}
+    assert pp.prepare_email(fields)["attachments"] == ["scan.zip", "a.pdf"]
+
+
+def test_remove_corpus_artifacts_scrubs_attachment_names():
+    fields = fields_with("x")
+    fields["attachments"] = ["jose@monkey.org_invoice.html"]
+    assert pp.remove_corpus_artifacts(fields)["attachments"] == [
+        "user@example.com_invoice.html"
+    ]
