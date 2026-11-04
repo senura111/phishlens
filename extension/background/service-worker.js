@@ -1,127 +1,101 @@
-// PhishLens service worker: the only part of the extension that talks to the local API.
+// PhishLens service worker: analyses emails inside the browser.
 //
-// Chrome starts this script when a message arrives and stops it after about 30
-// seconds of idle time, so nothing here may rely on variables surviving between
-// messages.
+// gmail.js (a content script) reads an opened email and sends it here; this worker
+// runs the analyser (../analyzer/, a JavaScript copy of the Python model) and sends
+// the verdict back. Nothing leaves the browser: there is no server, and this file
+// makes no network requests except reading the model file that ships inside the
+// extension.
 //
-// The API sends no CORS headers, so ordinary websites can't read its answers. This
-// worker can, because manifest.json's host_permissions include http://127.0.0.1:8000/*.
+// It's an ES module ("type": "module" in manifest.json), so it can import the
+// analyser. Chrome starts it when a message arrives and stops it after about 30
+// seconds of idle time; the model is loaded again the next time it starts.
 
-const API_URL = "http://127.0.0.1:8000";
-// The server answers /health instantly when it's running, so don't wait long.
-const HEALTH_TIMEOUT_MS = 2000;
-// An analysis takes well under a second (the slowest test input takes about 0.3 s).
-const ANALYZE_TIMEOUT_MS = 10000;
+import { analyze, loadModel } from "../analyzer/predict.js";
 
-const VERDICTS = ["phishing", "suspicious", "safe"];
-const SEVERITIES = ["high", "medium", "low"];
+const MODEL_URL = chrome.runtime.getURL("analyzer/generated/model.json");
 
-// Asks GET /health whether the server is running.
-// Returns { state: "running" } or { state: "offline" }.
-async function checkHealth() {
-  try {
-    const response = await fetch(`${API_URL}/health`, {
-      signal: AbortSignal.timeout(HEALTH_TIMEOUT_MS),
-    });
-    const data = await response.json();
-    // Something other than PhishLens could be answering on port 8000. Only our
-    // server says {"status": "ok"}.
-    const running = response.ok && data.status === "ok";
-    return { state: running ? "running" : "offline" };
-  } catch {
-    // fetch throws when nothing is listening on the port or the timeout passes;
-    // response.json() throws when the answer isn't JSON.
-    return { state: "offline" };
+// The loaded model, shared by every message while this worker is running. A promise,
+// so messages that arrive while it's loading all wait for the same load.
+let modelPromise = null;
+
+function getModel() {
+  if (modelPromise === null) {
+    modelPromise = fetch(MODEL_URL)
+      .then((response) => response.json())
+      .then(loadModel)
+      .catch((error) => {
+        modelPromise = null; // try again next time
+        throw error;
+      });
   }
+  return modelPromise;
 }
 
-// Sends one email (already fitted to the API's limits by payload.js) to
-// POST /analyze. Returns one of:
-//   { state: "verdict", result }  the API's answer: verdict, score, reasons
-//   { state: "offline" }          nothing is listening on 127.0.0.1:8000
-//   { state: "unreadable" }       422: the email couldn't be read, e.g. no sender
-//   { state: "failed" }           500, a timeout, or an answer we don't understand
+// Analyses one email (already fitted to the analyser's limits by payload.js).
+// Returns one of:
+//   { state: "verdict", result }  verdict, score and reasons
+//   { state: "unreadable" }       no sender address was found in the page
+//   { state: "failed" }           the model couldn't load or the analysis failed
 async function analyzeEmail(request) {
-  let response;
-  try {
-    response = await fetch(`${API_URL}/analyze`, {
-      method: "POST",
-      // The API only accepts JSON. fetch adds Content-Length itself.
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(request),
-      signal: AbortSignal.timeout(ANALYZE_TIMEOUT_MS),
-    });
-  } catch (error) {
-    // A timeout means the server is running but stuck; anything else means
-    // nothing answered at all.
-    return { state: error.name === "TimeoutError" ? "failed" : "offline" };
-  }
-
-  if (response.status === 422) {
-    // The 422 lists which fields were wrong (never their values), which is what
-    // we need to fix the extension.
-    const locations = await errorLocations(response);
-    console.warn(`PhishLens: /analyze answered 422 at ${locations}`);
-    return { state: "unreadable" };
-  }
-  if (response.status !== 200) {
-    // 500: the analysis failed. 400, 411, 413 or 415 would mean a bug in the
-    // extension, since payload.js and this function build the request.
-    console.warn(`PhishLens: /analyze answered ${response.status}`);
+  if (!isValidRequest(request)) {
+    console.warn("PhishLens: the email wasn't read in the expected shape");
     return { state: "failed" };
   }
-
-  try {
-    const result = cleanResult(await response.json());
-    if (result) {
-      return { state: "verdict", result };
-    }
-  } catch {
-    // Not JSON: something other than PhishLens is answering on port 8000.
+  // Every email has a sender address, so an empty one means gmail.js couldn't
+  // read it (Gmail may still have been loading the message).
+  if (request.sender_email === "") {
+    return { state: "unreadable" };
   }
-  console.warn("PhishLens: /analyze answered 200 with an unexpected body");
-  return { state: "failed" };
+  let model;
+  try {
+    model = await getModel();
+  } catch (error) {
+    console.warn(`PhishLens: the model couldn't be loaded: ${error.message}`);
+    return { state: "failed" };
+  }
+  try {
+    return { state: "verdict", result: analyze(request, model) };
+  } catch (error) {
+    // Only the error's type is logged: its message could quote the email.
+    console.warn(`PhishLens: the analysis failed (${error.name})`);
+    return { state: "failed" };
+  }
 }
 
-// "body.sender_email, body.links.3.href" from a 422 answer's detail list.
-async function errorLocations(response) {
-  try {
-    const { detail } = await response.json();
-    return detail.map((error) => error.loc.join(".")).join(", ");
-  } catch {
-    return "(unknown fields)";
-  }
+// The request must have the shape of the API contract in CLAUDE.md: four strings,
+// links as { text, href } strings, and attachment names as strings.
+function isValidRequest(request) {
+  const isString = (value) => typeof value === "string";
+  return (
+    ["sender_name", "sender_email", "subject", "body_text"].every((key) =>
+      isString(request?.[key])
+    ) &&
+    Array.isArray(request.links) &&
+    request.links.every((link) => isString(link?.text) && isString(link?.href)) &&
+    Array.isArray(request.attachments) &&
+    request.attachments.every(isString)
+  );
 }
 
-// Returns the answer with only the fields of the API contract, or null if it
-// doesn't match the contract. The banner can then rely on every field's type.
-function cleanResult(data) {
-  const reasonsOk =
-    Array.isArray(data?.reasons) &&
-    data.reasons.every(
-      (reason) =>
-        typeof reason?.id === "string" &&
-        SEVERITIES.includes(reason.severity) &&
-        typeof reason.message === "string"
-    );
-  if (!VERDICTS.includes(data?.verdict) || typeof data.score !== "number" || !reasonsOk) {
-    return null;
+// For the popup: does the model load? Also returns its test scores.
+async function checkStatus() {
+  try {
+    const model = await getModel();
+    return { state: "ready", testMetrics: model.testMetrics };
+  } catch (error) {
+    console.warn(`PhishLens: the model couldn't be loaded: ${error.message}`);
+    return { state: "error" };
   }
-  return {
-    verdict: data.verdict,
-    score: data.score,
-    reasons: data.reasons.map(({ id, severity, message }) => ({ id, severity, message })),
-  };
 }
 
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   // Only this extension's own popup and content scripts can send messages here
   // (manifest.json has no "externally_connectable"). Still, answer only the message
   // types we know.
-  if (message?.type === "health") {
-    checkHealth().then(sendResponse);
+  if (message?.type === "status") {
+    checkStatus().then(sendResponse);
     // true means "I'll call sendResponse later". Without it Chrome closes the reply
-    // channel as soon as this function returns, before fetch has finished.
+    // channel as soon as this function returns.
     return true;
   }
   if (message?.type === "analyze") {

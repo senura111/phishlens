@@ -1,23 +1,21 @@
-// Popup: shows whether the local API is running. It asks the service worker instead
-// of calling the API itself, so every API call lives in one file.
+// Popup: shows whether the analyser is ready, i.e. the service worker could load the
+// model that ships inside the extension.
 
 const statusElement = document.getElementById("status");
-const helpElement = document.getElementById("help");
 
-function showStatus(state) {
-  if (state === "running") {
-    statusElement.textContent = "The local server is running.";
-    statusElement.className = "status status-running";
-    helpElement.hidden = true;
+function showStatus(response) {
+  if (response?.state === "ready") {
+    statusElement.textContent = "Ready: emails are checked inside your browser.";
+    statusElement.className = "status status-ready";
   } else {
-    statusElement.textContent = "The local server is not running, so emails can't be checked.";
-    statusElement.className = "status status-offline";
-    helpElement.hidden = false;
+    statusElement.textContent =
+      "The analyser couldn't start, so emails can't be checked. Try reloading the extension.";
+    statusElement.className = "status status-error";
   }
 }
 
 chrome.runtime
-  .sendMessage({ type: "health" })
-  .then((response) => showStatus(response?.state))
+  .sendMessage({ type: "status" })
+  .then(showStatus)
   // sendMessage fails if the service worker couldn't start or didn't answer.
-  .catch(() => showStatus("offline"));
+  .catch(() => showStatus(null));

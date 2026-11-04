@@ -5,15 +5,15 @@
 // changes the page's DOM. A MutationObserver tells us whenever the DOM changes, and we
 // then look for expanded messages we haven't read yet.
 //
-// Each message is fitted to the API's limits (payload.js) and sent to the service
-// worker, which calls the local API. The outcome is shown in a banner above the
-// message's body (banner.js) and logged to the console.
+// Each message is fitted to the analysis limits (payload.js) and sent to the service
+// worker, which analyses it inside the browser. The outcome is shown in a banner
+// above the message's body (banner.js) and logged to the console.
 
 // How long to wait after the first DOM change before looking for messages. Gmail
 // changes the DOM many times while it shows an email; waiting lets it finish.
 const SCAN_DELAY_MS = 300;
 
-// Outcomes by data-message-id: null while the API is working on a message, then
+// Outcomes by data-message-id: null while a message is being analysed, then
 // { state, result, truncated } (see analyseMessage). Without this, every DOM change
 // (and Gmail makes many) would send the same message again. It lives only in this
 // tab's memory; the reasons can quote a domain from the email, so it's never saved.
@@ -61,8 +61,8 @@ function scanForMessages() {
 }
 
 // Sends one message to the service worker and stores the outcome:
-//   state      "verdict", "offline", "unreadable" or "failed" (service-worker.js)
-//   result     the API's verdict, score and reasons (only when state is "verdict")
+//   state      "verdict", "unreadable" or "failed" (service-worker.js)
+//   result     the verdict, score and reasons (only when state is "verdict")
 //   truncated  true if payload.js had to cut something: only partly analysed
 async function analyseMessage(id, email) {
   const { request, truncated } = fitEmail(email);
@@ -82,10 +82,10 @@ async function analyseMessage(id, email) {
   scheduleScan();
 }
 
-// Puts a message's banner above its body, unless it's already there, the API is
-// still working on the message, or the user dismissed it. Gmail sometimes rebuilds
+// Puts a message's banner above its body, unless it's already there, the message is
+// still being analysed, or the user dismissed it. Gmail sometimes rebuilds
 // a message's DOM (e.g. when you come back to a thread), which removes our banner;
-// the next scan puts it back from the stored outcome, without asking the API again.
+// the next scan puts it back from the stored outcome, without analysing it again.
 function showBanner(id, message, body) {
   const outcome = messageOutcomes.get(id);
   if (!outcome || outcome.dismissed || message.querySelector(`.${BANNER_CLASS}`)) {
@@ -106,8 +106,8 @@ function showBanner(id, message, body) {
   body.before(banner);
 }
 
-// Returns the email in the shape of the API request (see the API contract in
-// CLAUDE.md), not yet fitted to the API's length caps.
+// Returns the email in the shape of the API contract in CLAUDE.md (the analyser
+// takes the same fields), not yet fitted to the length caps.
 function readMessage(message, body) {
   const sender = message.querySelector(SELECTORS.sender);
   return {
