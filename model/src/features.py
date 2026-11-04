@@ -368,7 +368,9 @@ def homoglyphs(email: dict) -> list[dict]:
 
 # --- Rule 5: sender display name doesn't match the address domain --------------------
 
-_NAME_EMAIL_RE = re.compile(r"[\w.+-]+@([\w-]+(?:\.[\w-]+)+)")
+# The lookbehind starts a match only at the beginning of a run of address characters,
+# so a long run without "@" isn't tried again from every position (see _FILE_NAME_RE).
+_NAME_EMAIL_RE = re.compile(r"(?<![\w.+-])[\w.+-]+@([\w-]+(?:\.[\w-]+)+)")
 # Multi-word brands are matched with spaces removed ("Bank of America", "Office 365").
 MIN_JOINED_BRAND_LENGTH = 8
 
@@ -545,12 +547,17 @@ RISKY_FILE_TYPES = {
 }
 # Web pages end in .html, so .html only counts in the text, not in link addresses.
 _NOT_RISKY_IN_LINKS = {"html", "htm", "shtml"}
+# Both regexes below start a match only at the beginning of a name or word (the
+# lookbehind). Without it, a long run of letters with no dot or "/" was tried again
+# from every position, each attempt scanning to the end of the run: 100 KB of
+# "xxx..." took 48 seconds. The matches found are the same either way.
 _FILE_NAME_RE = re.compile(
-    r"[\w\-()\[\]]+\.(" + "|".join(RISKY_FILE_TYPES) + r")\b", re.IGNORECASE
+    r"(?<![\w\-()\[\]])[\w\-()\[\]]+\.(" + "|".join(RISKY_FILE_TYPES) + r")\b",
+    re.IGNORECASE,
 )
 # Words containing "/" are URL paths (example.com/story/0,1,00.html): web pages,
 # not attachments. They're removed before looking for file names.
-_PATH_WORD_RE = re.compile(r"\S*/\S*")
+_PATH_WORD_RE = re.compile(r"(?<!\S)\S*/\S*")
 
 
 # "Invoice.pdf.exe": a harmless-looking extension in front of a risky one. Windows

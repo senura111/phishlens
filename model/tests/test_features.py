@@ -1,3 +1,4 @@
+import time
 import unicodedata
 
 import pytest
@@ -321,6 +322,18 @@ def test_sender_name_mismatch_does_not_fire(name, address):
     )
 
 
+def test_sender_name_mismatch_is_fast_on_a_long_run_and_still_finds_the_address():
+    # A long run of address characters took seconds before the regex was fixed to
+    # start only at the beginning of a run.
+    name = "x" * 20_000 + " service@paypal.com"
+    start = time.perf_counter()
+    reasons = ft.sender_name_mismatch(
+        make_email(sender_name=name, sender_email="x@evil.ru")
+    )
+    assert time.perf_counter() - start < 1
+    assert "'paypal.com'" in reasons[0]["message"]
+
+
 # --- Rule 6: urgency -----------------------------------------------------------------
 
 
@@ -475,6 +488,16 @@ def test_risky_attachment_ignores_web_pages_in_urls():
 def test_risky_attachment_ignores_file_names_in_comma_separated_url_paths():
     body = "See www.zdnet.com/anchordesk/stories/story/0,10738,2880386,00.html"
     assert ft.risky_attachment(make_email(body=body)) == []
+
+
+def test_risky_attachment_is_fast_on_a_long_run_without_a_dot():
+    # 100 KB of "xxx..." took 48 seconds before the file-name regex was fixed to
+    # start only at the beginning of a name.
+    email = make_email(body="x" * 100_000 + " then run setup.exe")
+    start = time.perf_counter()
+    reason = ft.risky_attachment(email)[0]
+    assert time.perf_counter() - start < 1
+    assert "'setup.exe'" in reason["message"]
 
 
 # --- Rule 8 with the optional attachments field --------------------------------------
