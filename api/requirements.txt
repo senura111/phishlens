@@ -1,0 +1,14 @@
+# Install into the project virtual environment from the repo root:
+#   .venv\Scripts\python -m pip install -r api/requirements.txt
+# Direct dependencies only, each checked to support Python 3.11.
+
+# The API imports the model, so it needs everything the model needs.
+-r ../model/requirements.txt
+
+# Web server
+fastapi==0.162.0
+pydantic==2.14.2
+uvicorn==0.54.0
+
+# Testing (FastAPI's TestClient uses httpx2, the successor of httpx)
+httpx2==2.16.0
