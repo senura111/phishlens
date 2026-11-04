@@ -136,6 +136,21 @@ pass. At the end of each phase, update the README with what was built and how to
   "attachments": ["Invoice_2291.pdf.exe"]
 }
 ```
+Every field except `attachments` is required. Required means present, not non-empty:
+- A missing field is rejected with 422.
+- `sender_name`, `subject` and `body_text` may be `""`, and `links` may be `[]`. Real
+  emails can have no display name, no body text (image-only emails) or no links.
+- `sender_email` must not be empty: every email has a sender address, so an empty one
+  means the extension failed to read it.
+- Each link needs both `text` (may be `""`, e.g. an image link) and `href`.
+- `null` is not the same as empty: send `""` or `[]`, never `null`.
+- Unknown fields are rejected with 422, so a typo like `senderEmail` fails loudly.
+- Length caps (characters), over which a request is rejected with 422: `sender_email`
+  254, `sender_name` 256, `subject` 1,000, each link's `text` and `href` 2,048, each
+  attachment name 255. At most 1,000 links and 100 attachments. The extension should
+  shorten values to these caps rather than send them whole.
+- `body_text` has no cap of its own, but bodies over 100 KB are rejected with 413.
+
 `attachments` is optional: a list of attachment file names as Gmail shows them (names only,
 never file contents). Missing or empty means no attachments are known.
 
