@@ -1,6 +1,6 @@
 // Tests for extension/content/payload.js. Run from the repo root:
 //
-//     node --test extension/tests/payload.test.js
+//     node --test tests/js/
 //
 // Invisible and non-ASCII characters are built with String.fromCodePoint, so this
 // file stays plain ASCII and every test input is visible when reading it.
@@ -14,7 +14,7 @@ const {
   cutText,
   requestBytes,
   fitEmail,
-} = require("../content/payload.js");
+} = require("../../extension/content/payload.js");
 
 const ZERO_WIDTH_SPACE = String.fromCodePoint(0x200b);
 const SOFT_HYPHEN = String.fromCodePoint(0xad);
