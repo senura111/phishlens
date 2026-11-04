@@ -6,8 +6,8 @@ looks suspicious.
 The classifier runs in a small Python API on your own machine, so email content never leaves
 your computer.
 
-> **Status:** Phase 1 (the model) is done, with the known limitations listed below. The
-> API and the extension are not built yet. See [Roadmap](#roadmap).
+> **Status:** Phase 1 (the model) and Phase 2 (the local API) are done, with the known
+> limitations listed below. The extension is not built yet. See [Roadmap](#roadmap).
 
 ## How it works
 
@@ -42,7 +42,7 @@ Gmail tab ─> content script (reads the open email)
 | Phase | What | Status |
 | ----- | ---- | ------ |
 | 1 | Model: preprocessing, rule-based signals, scikit-learn classifier | Done (see [Known limitations](#known-limitations)) |
-| 2 | Local API: FastAPI `POST /analyze` and `GET /health` | Not started |
+| 2 | Local API: FastAPI `POST /analyze` and `GET /health` | Done (see [Local API](#local-api-phase-2)) |
 | 3 | Chrome extension (Manifest V3): Gmail banner and popup | Not started |
 | 4 | Polish: link highlighting, toolbar badge, sensitivity setting, demo GIF | Optional |
 
@@ -283,9 +283,115 @@ footers. Some biases can't be cleaned away:
   campaigns are kept on one side of the train/test split so test scores stay honest.
 - **The test set shares these biases.** It comes from the same two datasets, so the
   scores above overstate real-world accuracy.
+- **Disguised file names in the body text.** A double extension like "Invoice.pdf.exe"
+  is only recognised in the `attachments` field, where the warning says the file
+  pretends to be a .pdf but is really a .exe. Mentioned in the body text, the same name
+  is reported as the file "pdf.exe": still a high-severity warning about a program,
+  but without saying it's disguised. The pattern that finds file names in text doesn't
+  allow dots inside a name. **Future fix:** let it accept a harmless-looking extension
+  in front of the risky one.
 
 After changing preprocessing, re-check for shortcuts with
 `python -m model.src.audit_shortcuts`.
+
+## Local API (Phase 2)
+
+A small FastAPI server wraps `analyze()` so the extension can call it. It listens on
+`127.0.0.1:8000` only, so nothing else on your network can reach it.
+
+| Endpoint | What it does |
+| --- | --- |
+| `GET /health` | Answers `{"status": "ok"}` when the server is running |
+| `POST /analyze` | Takes the email fields Gmail shows; returns a verdict, score and reasons |
+
+The exact request and response format is the
+[API contract in CLAUDE.md](CLAUDE.md#api-contract).
+
+**The model is loaded once, at startup.** If there's no trained model, the server
+refuses to start and says how to train one. So a running server always has a model,
+and the extension only has to tell "running" from "not running".
+
+### What a request must look like
+
+- Every field except `attachments` must be present, but may be empty (`""` or `[]`).
+  Real emails can have no display name, no body text (image-only emails) or no links.
+  `sender_email` must not be empty: every email has a sender address.
+- Unknown fields are rejected, so a typo in the extension fails loudly instead of being
+  ignored.
+- Length caps (characters): `sender_email` 254, `sender_name` 256, `subject` 1,000,
+  each link's text and address 2,048, each attachment name 255. At most 1,000 links
+  and 100 attachments. `body_text` is only limited by the 100 KB request limit.
+- The request must be JSON (`Content-Type: application/json`), at most 100 KB, and
+  say its size in a `Content-Length` header.
+
+| Status | When |
+| --- | --- |
+| 200 | The verdict |
+| 400 | The request isn't addressed to `127.0.0.1` or `localhost` |
+| 411 | No `Content-Length` header (a body sent in chunks) |
+| 413 | The request is over 100 KB |
+| 415 | The request isn't JSON |
+| 422 | A field is missing, unknown, too long or the wrong type. The response lists where and what, never the value that was sent |
+| 500 | The analysis failed. The response says only "Internal server error" |
+
+### Security design
+
+- **No CORS.** The extension calls the API from its service worker, which its
+  `host_permissions` allow without CORS. Without CORS headers, browsers don't let
+  other websites read the API's answers.
+- **JSON only.** A webpage can send `text/plain` or form data to any address without
+  asking the server first (no CORS "preflight"). It can't send JSON without asking,
+  and the API refuses to answer that question. So a webpage can't get a request
+  through at all.
+- **Host check.** The API only answers requests addressed to `127.0.0.1` or
+  `localhost`. This blocks *DNS rebinding*, where a website points its own domain
+  name at `127.0.0.1` so the browser treats the API as part of that website.
+- **No email content in responses or logs.** A 422 lists where each error is and
+  what's wrong, but not the value sent. A 500 says nothing about the error, and the
+  log line names only the error's type (`analyze() failed with ValueError`): an
+  error message or traceback can quote the email. Uvicorn's access log only records
+  the client address, method, path and status.
+
+### Security testing
+
+`api/tests/` checks everything above against the running app. Two kinds of test
+deserve a note.
+
+**Sentinel tests.** A unique marker string stands in for email content. Tests send it
+in an invalid field, in an unknown field and in broken JSON, and check that the 422
+doesn't contain it. Another test makes `analyze()` fail with an error whose message
+quotes the email body. It checks that the marker appears neither in the 500 response
+nor in the captured log output, while the error's type name does.
+
+**Slow inputs (ReDoS), found and fixed.** The test for a 100 KB request took 48
+seconds: one email of 100 KB of "xxx..." froze the analysis. This is *ReDoS* (regular
+expression denial of service). Some regexes, given a long run of characters that
+can't match, tried again from every position in the run, and each attempt scanned to
+the end of the run. The time grows with the square of the run's length, so an
+attacker could send an email built to hang the analysis. A scan of unusual inputs
+(long runs of letters, `1.1.1.`, `a.a.a.`, dashes, Cyrillic letters and more, in every
+field) found four regexes with this flaw:
+
+| Regex | Used by | Worst input before the fix (about 90–100 KB) |
+| --- | --- | --- |
+| `_FILE_NAME_RE`, `_PATH_WORD_RE` | `risky_attachment` | "xxx..." in the body: 48 s |
+| `EMAIL_RE` | removing addresses from subject and body | "1.1.1.1..." in the body: 36 s |
+| `_NAME_EMAIL_RE` | `sender_name_mismatch` | Cyrillic letters in the sender name: 45 s |
+
+The fix makes each regex start a match only at the beginning of a run (a
+*lookbehind*), so a run is scanned once. The matches are the same as before. Old and
+new regexes were compared on all 7,609 raw dataset emails: identical matches, and
+identical `prepare_email()` and rule output, so the saved model didn't need
+retraining.
+
+After the fix, the slowest input in the same scan takes 0.21 s for 90 KB, and time
+grows in step with the input (4× the input takes about 4× as long). The length caps
+also keep the short fields small. `api/tests/test_slow_inputs.py` keeps it that way:
+17 patterns × 8 fields, each at the largest size the API accepts, must each be
+analysed in under 1 second. They take at most about 0.3 s.
+
+One training-only regex (`_CORPUS_ARTIFACTS` in `preprocess.py`) has the same flaw.
+It only runs on the downloaded datasets, never on API requests, so it was left as is.
 
 ## Project layout
 
@@ -321,7 +427,7 @@ Download the datasets as described in [model/data/README.md](model/data/README.m
 Training saves `model/artifacts/phishlens.joblib` (about 1 MB). It is not committed;
 run the training step to create it.
 
-To analyse one email from Python (the API in Phase 2 will wrap this):
+To analyse one email from Python (the API wraps this):
 
 ```python
 from model.src.predict import analyze
@@ -336,6 +442,35 @@ analyze({
 })
 # -> {"verdict": "phishing", "score": ..., "reasons": [{"id": "link_text_mismatch", ...}, ...]}
 ```
+
+### Local API (Phase 2)
+
+Train the model first (see above). Then, from the repo root:
+
+```bash
+.venv\Scripts\python -m pip install -r api/requirements.txt
+```
+
+```bash
+.venv\Scripts\python -m uvicorn api.main:app --host 127.0.0.1 --port 8000
+```
+
+Start it from the repo root: the API imports the model as `model.src.predict`, which
+Python only finds from there. Keep `--host 127.0.0.1`; never use `0.0.0.0`, which would
+open the API to your network.
+
+To try it, open <http://127.0.0.1:8000/docs> (FastAPI's interactive docs), or from
+Git Bash:
+
+```bash
+curl http://127.0.0.1:8000/health
+```
+
+```bash
+curl -X POST http://127.0.0.1:8000/analyze -H "Content-Type: application/json" -d '{"sender_name": "PayPal Service", "sender_email": "service@paypal-account-review.com", "subject": "Your account has been limited", "body_text": "Please confirm your account details within 24 hours.", "links": [{"text": "https://www.paypal.com/signin", "href": "http://paypal-account-review.com/login.php"}]}'
+```
+
+The tests run with the rest: `.venv\Scripts\python -m pytest`.
 
 ## License
 
