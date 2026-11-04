@@ -281,6 +281,18 @@ footers. Some biases can't be cleaned away:
   Brand names are masked and ignored by the text model, but the rest of a copied
   template (its footer, its phrasing) can still act as a phishing sign. Near-duplicate
   campaigns are kept on one side of the train/test split so test scores stay honest.
+- **Mailing and click-tracking services.** Legitimate email sent through a mailing
+  service often has links whose text shows the sender's own site while the real link
+  goes to the service's click tracker. A real university newsletter shows
+  "www.ecu.edu.lk" but links to a `navitas.com` tracking URL, and gets an amber
+  "suspicious" verdict (score 0.58, link_text_mismatch). To the extension this looks
+  exactly like phishing. The obvious fixes all weaken detection or privacy: trusting
+  links on the sender's domain or allowlisting more mailing services gives phishers a
+  way through (they use the same services), and following the redirect to see where
+  it ends would mean contacting the link's server, which the privacy rules forbid.
+  So the rule stays, and the banner shows both domains, so you can judge for
+  yourself. (The rule already skips a short list of well-known trackers such as
+  SendGrid and Mailchimp.)
 - **The test set shares these biases.** It comes from the same two datasets, so the
   scores above overstate real-world accuracy.
 - **Disguised file names in the body text.** A double extension like "Invoice.pdf.exe"
