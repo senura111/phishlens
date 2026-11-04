@@ -115,6 +115,20 @@ pass. At the end of each phase, update the README with what was built and how to
   warnings. A lone rule hit on a safe email is usually harmless (a newsletter's
   click-tracking link, a brand name sent from an email-service domain), and warning
   styling there would teach users to ignore the banner.
+- Most phishing gets an amber "suspicious" verdict, because red needs rule-based evidence
+  (see the README's verdict rules). So the amber banner's wording must be a clear warning,
+  e.g. "This email shows signs of phishing. Check carefully before clicking links or
+  replying."
+- Fitting the API's length caps (see the API contract): anything the extension truncates
+  is a blind spot an attacker can exploit.
+  - Remove duplicate links (same `href`) before applying the 1,000-link cap.
+  - Truncate long `href`s from the end, so the domain is kept.
+  - If any field or list had to be truncated, the banner must say the email was only
+    partly analysed, never show a plain green "safe".
+- Three states that aren't verdicts, each with its own message:
+  - Server not running: the grey offline banner above.
+  - Couldn't read this email: the API answered 422, e.g. no sender address was found.
+  - Analysis failed: the API answered 500.
 - Popup: API status (via /health), short explanation, link to the GitHub repo.
 - Load for testing: chrome://extensions → Developer mode → Load unpacked → `extension/`
 
