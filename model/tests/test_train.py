@@ -74,3 +74,11 @@ def test_weight_table_computes_typical_push_for_words_and_rules():
 
 def test_saved_approach_is_text_and_rules():
     assert train.SAVED_APPROACH == TEXT_AND_RULES
+
+
+def test_vectorizer_ignores_the_brand_placeholder():
+    # Words must be in 3+ emails (min_df) but not in over 90% of them (max_df).
+    texts = ["verify your brandname account now"] * 4 + ["lunch on the patio"]
+    vocabulary = train.make_vectorizer().fit(texts).vocabulary_
+    assert "brandname" not in vocabulary
+    assert "your account" in vocabulary  # word pairs form across the dropped word

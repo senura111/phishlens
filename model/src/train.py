@@ -23,8 +23,6 @@ Three approaches are compared on the same split:
 
 from __future__ import annotations
 
-from pathlib import Path
-
 import joblib
 import numpy as np
 import pandas as pd
@@ -38,6 +36,8 @@ from sklearn.model_selection import GroupShuffleSplit
 from model.src import features, preprocess
 from model.src.predict import (
     APPROACHES,
+    ARTIFACT_PATH,
+    BRAND_TOKEN,
     PHISHING,
     RULES_ONLY,
     SAFE,
@@ -49,11 +49,15 @@ from model.src.predict import (
     email_text,
 )
 
-ARTIFACT_PATH = Path(__file__).resolve().parents[1] / "artifacts" / "phishlens.joblib"
 # Chosen over "text only" although its F1 was a hair lower (0.981 vs 0.985): it made
 # fewer false positives and leans less on the datasets' writing style, because part of
 # its evidence comes from the rules, which look for phishing tactics, not style.
 SAVED_APPROACH = TEXT_AND_RULES
+# Replace brand names with one placeholder word before TF-IDF (see predict.mask_brands).
+# The placeholder is also a stop word, so the text model ignores brand mentions:
+# as a normal word it became a strong phishing sign ("a brand was mentioned").
+# Spotting brand impersonation is the rules' job.
+MASK_BRANDS = True
 TEST_SIZE = 0.2
 RANDOM_STATE = 42
 # Emails this similar (cosine similarity of their TF-IDF vectors) are one campaign.
@@ -97,6 +101,7 @@ def make_vectorizer() -> TfidfVectorizer:
         min_df=3,
         max_df=0.9,
         sublinear_tf=True,
+        stop_words=[BRAND_TOKEN],  # dropped before counting: never a model input
     )
 
 
@@ -114,13 +119,8 @@ def fit(approach: str, texts: list[str], rule_rows: list[list[float]], labels):
 def predict_verdicts(approach, vectorizer, classifier, texts, rule_rows, reasons):
     """Scores and verdicts, using the same verdict policy as the API."""
     x = design_matrix(approach, vectorizer, texts, rule_rows)
-    x_text = design_matrix(approach, vectorizer, texts, rule_rows, without_rules=True)
     scores = classifier.predict_proba(x)[:, 1]
-    text_scores = classifier.predict_proba(x_text)[:, 1]
-    verdicts = [
-        decide_verdict(score, r, text_score)
-        for score, r, text_score in zip(scores, reasons, text_scores)
-    ]
+    verdicts = [decide_verdict(score, r) for score, r in zip(scores, reasons)]
     return scores, verdicts
 
 
@@ -210,58 +210,79 @@ def false_positives_by_source(test: pd.DataFrame, verdicts) -> pd.DataFrame:
     return table
 
 
-def main() -> None:
-    df, _ = preprocess.load_dataset()
-    reasons = [features.find_reasons(email) for email in df.to_dict("records")]
+def _pick(values, idx):
+    return [values[i] for i in idx]
+
+
+def run_experiment(df: pd.DataFrame, mask_brand_names: bool = MASK_BRANDS) -> dict:
+    """Group into campaigns, split, then fit and evaluate every approach.
+
+    Campaigns are found on the unmasked text, so the split is the same whether or not
+    brand names are masked, and the two settings can be compared fairly.
+    """
+    emails = df.to_dict("records")
+    reasons = [features.find_reasons(email) for email in emails]
     rule_rows = [features.rule_vector(r) for r in reasons]
-    texts = [email_text(email) for email in df.to_dict("records")]
+    texts = [email_text(email, mask_brand_names) for email in emails]
     labels = df["label"].to_numpy()
 
-    groups = campaign_groups(texts)
-    sizes = pd.Series(groups).value_counts()
-    print(
-        f"{len(df)} emails in {len(sizes)} campaigns; "
-        f"{int((sizes > 1).sum())} campaigns have 2+ emails (largest: {sizes.iloc[0]})"
-    )
-
+    groups = campaign_groups([email_text(email) for email in emails])
     split = GroupShuffleSplit(
         n_splits=1, test_size=TEST_SIZE, random_state=RANDOM_STATE
     )
     train_idx, test_idx = next(split.split(texts, labels, groups))
-    assert not set(groups[train_idx]) & set(
-        groups[test_idx]
-    )  # no campaign on both sides
-    test = df.iloc[test_idx]
-    print(
-        f"train: {len(train_idx)} emails, test: {len(test_idx)} emails "
-        f"({len(test_idx) / len(df):.0%}; {int(labels[test_idx].sum())} phishing)\n"
-    )
-
-    def pick(values, idx):
-        return [values[i] for i in idx]
+    assert not set(groups[train_idx]) & set(groups[test_idx])  # no shared campaign
 
     results = {}
     for approach in APPROACHES:
         vectorizer, classifier = fit(
             approach,
-            pick(texts, train_idx),
-            pick(rule_rows, train_idx),
+            _pick(texts, train_idx),
+            _pick(rule_rows, train_idx),
             labels[train_idx],
         )
-        _, verdicts = predict_verdicts(
+        scores, verdicts = predict_verdicts(
             approach,
             vectorizer,
             classifier,
-            pick(texts, test_idx),
-            pick(rule_rows, test_idx),
-            pick(reasons, test_idx),
+            _pick(texts, test_idx),
+            _pick(rule_rows, test_idx),
+            _pick(reasons, test_idx),
         )
         results[approach] = {
             "vectorizer": vectorizer,
             "classifier": classifier,
+            "scores": scores,
             "verdicts": verdicts,
             **summarise(labels[test_idx], verdicts),
         }
+    return {
+        "results": results,
+        "groups": groups,
+        "train_idx": train_idx,
+        "test_idx": test_idx,
+        "texts": texts,
+        "rule_rows": rule_rows,
+    }
+
+
+def main() -> None:
+    df, _ = preprocess.load_dataset()
+    run = run_experiment(df)
+    results, train_idx, test_idx = run["results"], run["train_idx"], run["test_idx"]
+    texts, rule_rows, labels = run["texts"], run["rule_rows"], df["label"].to_numpy()
+    test = df.iloc[test_idx]
+
+    sizes = pd.Series(run["groups"]).value_counts()
+    print(
+        f"{len(df)} emails in {len(sizes)} campaigns; "
+        f"{int((sizes > 1).sum())} campaigns have 2+ emails (largest: {sizes.iloc[0]})"
+    )
+    print(
+        f"train: {len(train_idx)} emails, test: {len(test_idx)} emails "
+        f"({len(test_idx) / len(df):.0%}; {int(labels[test_idx].sum())} phishing); "
+        f"brand names masked: {MASK_BRANDS}\n"
+    )
 
     for approach, r in results.items():
         (tn, fp), (fn, tp) = r["confusion"]
@@ -287,17 +308,23 @@ def main() -> None:
     x_train = design_matrix(
         SAVED_APPROACH,
         saved["vectorizer"],
-        pick(texts, train_idx),
-        pick(rule_rows, train_idx),
+        _pick(texts, train_idx),
+        _pick(rule_rows, train_idx),
     )
     print()
-    print_weight_report(weight_table(saved["vectorizer"], saved["classifier"], x_train))
+    weights = weight_table(saved["vectorizer"], saved["classifier"], x_train)
+    print_weight_report(weights)
+    if MASK_BRANDS:
+        ignored = BRAND_TOKEN not in saved["vectorizer"].vocabulary_
+        print()
+        print(f"brand placeholder '{BRAND_TOKEN}' ignored by the model: {ignored}")
 
     artifact = {
         "approach": SAVED_APPROACH,
         "vectorizer": saved["vectorizer"],
         "classifier": saved["classifier"],
         "rule_ids": features.REASON_IDS,
+        "mask_brands": MASK_BRANDS,
         "test_metrics": {k: float(saved[k]) for k in ("precision", "recall", "f1")},
     }
     ARTIFACT_PATH.parent.mkdir(exist_ok=True)
