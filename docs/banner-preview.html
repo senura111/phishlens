@@ -1,0 +1,280 @@
+<!doctype html>
+<!--
+  Every PhishLens banner state, rendered by the real extension/content/banner.js and
+  banner.css with sample data. Open this file in Chrome (double-click it); no server
+  or extension needed.
+
+  Some samples contain hostile text: a reason quoting <img src=x onerror=alert(1)>,
+  and one quoting a subject with <script> tags. Reasons are the only way email text
+  reaches the banner (it never shows the subject or body itself). If banner.js ever
+  used innerHTML, an alert would pop up; instead the tags appear as plain text, and
+  the check at the top of the page counts the elements they created: zero.
+-->
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>PhishLens banner preview</title>
+    <link rel="stylesheet" href="../extension/content/banner.css" />
+    <style>
+      body {
+        margin: 0;
+        padding: 24px 16px 48px;
+        background: #f6f8fc;
+        color: #1f1f1f;
+        font: 14px/1.5 Roboto, Arial, sans-serif;
+      }
+      /* Gmail's dark theme: the banner should keep its own colours on it. */
+      body.dark {
+        background: #1f1f1f;
+        color: #e3e3e3;
+      }
+      main {
+        max-width: 860px;
+        margin: 0 auto;
+      }
+      h1 {
+        margin: 0 0 8px;
+        font-size: 22px;
+      }
+      .controls {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px 24px;
+        align-items: center;
+        margin-bottom: 24px;
+      }
+      #check {
+        padding: 4px 10px;
+        border-radius: 4px;
+        font-weight: 700;
+      }
+      #check.passed {
+        background: #e6f4ea;
+        color: #137333;
+      }
+      #check.failed {
+        background: #fce8e6;
+        color: #a50e0e;
+      }
+      h2 {
+        margin: 32px 0 8px;
+        font-size: 15px;
+      }
+      /* Stands in for a Gmail message: the banner sits above the body text. */
+      .message {
+        padding: 16px;
+        border-radius: 12px;
+        background: #ffffff;
+        color: #1f1f1f;
+      }
+      body.dark .message {
+        background: #2d2d2d;
+        color: #e3e3e3;
+      }
+      .fake-body {
+        margin: 0;
+        color: #5f6368;
+      }
+      body.dark .fake-body {
+        color: #a8a8a8;
+      }
+      #log {
+        min-height: 1.5em;
+        color: #5f6368;
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <h1>PhishLens banner preview</h1>
+      <div class="controls">
+        <span id="check">Hostile-text check: not run</span>
+        <label><input type="checkbox" id="dark" /> Gmail dark theme</label>
+        <span id="log" aria-live="polite"></span>
+      </div>
+      <div id="samples"></div>
+    </main>
+
+    <script src="../extension/content/banner.js"></script>
+    <script>
+      // Hostile text, as an attacker could put it in an email. "</" + "script>" is
+      // split because the literal closing tag would end this <script> block.
+      const IMG_ATTACK = "<img src=x onerror=alert(1)>";
+      const SCRIPT_SUBJECT = "<script>alert('subject')</" + "script> Act now";
+
+      const reasons = {
+        linkMismatch: {
+          id: "link_text_mismatch",
+          severity: "high",
+          message: "A link shows 'paypal.com' but goes to 'paypal-account-review.com'",
+        },
+        lookalike: {
+          id: "lookalike_domain",
+          severity: "high",
+          message: "Sender domain 'paypal-account-review.com' imitates paypal.com (and 1 more)",
+        },
+        hostileLookalike: {
+          id: "lookalike_domain",
+          severity: "high",
+          message: `Sender domain '${IMG_ATTACK}' imitates paypal.com`,
+        },
+        nameMismatch: {
+          id: "sender_name_mismatch",
+          severity: "medium",
+          message:
+            "The sender name says 'PayPal Service' but the address is from " +
+            "'paypal-account-review.com', not paypal.com",
+        },
+        urgency: {
+          id: "urgency",
+          severity: "medium",
+          message:
+            "Uses pressure or threats to rush you: 'action required', 'account has been limited'",
+        },
+        hostileUrgency: {
+          id: "urgency",
+          severity: "medium",
+          message: `Uses pressure or threats to rush you: '${SCRIPT_SUBJECT}'`,
+        },
+        // As for the real ECU newsletter (README, Known limitations). The domains are
+        // what the API reports for it.
+        trackingLink: {
+          id: "link_text_mismatch",
+          severity: "high",
+          message: "A link shows 'edu.lk' but goes to 'navigate.e.navitas.com'",
+        },
+        language: {
+          id: "phishing_language",
+          severity: "low",
+          message:
+            "The wording is similar to phishing emails (for example 'your', 'account', " +
+            "'please'). On its own this is a weak sign.",
+        },
+      };
+
+      const samples = [
+        {
+          title: "Phishing (red), with hostile text in two reasons",
+          outcome: {
+            state: "verdict",
+            truncated: false,
+            result: {
+              verdict: "phishing",
+              score: 1.0,
+              reasons: [
+                reasons.linkMismatch,
+                reasons.hostileLookalike,
+                reasons.nameMismatch,
+                reasons.hostileUrgency,
+                reasons.language,
+              ],
+            },
+          },
+        },
+        {
+          title: "Phishing, only partly analysed",
+          outcome: {
+            state: "verdict",
+            truncated: true,
+            result: {
+              verdict: "phishing",
+              score: 0.97,
+              reasons: [reasons.lookalike, reasons.urgency, reasons.language],
+            },
+          },
+        },
+        {
+          title: "Suspicious (amber): a mailing service's tracking link",
+          outcome: {
+            state: "verdict",
+            truncated: false,
+            result: {
+              verdict: "suspicious",
+              score: 0.58,
+              reasons: [reasons.trackingLink, reasons.language],
+            },
+          },
+        },
+        {
+          title: "Suspicious, only partly analysed",
+          outcome: {
+            state: "verdict",
+            truncated: true,
+            result: { verdict: "suspicious", score: 0.66, reasons: [reasons.urgency] },
+          },
+        },
+        {
+          title: "Safe (green), no reasons",
+          outcome: {
+            state: "verdict",
+            truncated: false,
+            result: { verdict: "safe", score: 0.15, reasons: [] },
+          },
+        },
+        {
+          title: "Safe with a minor note (collapsed, grey)",
+          outcome: {
+            state: "verdict",
+            truncated: false,
+            result: { verdict: "safe", score: 0.4, reasons: [reasons.trackingLink] },
+          },
+        },
+        {
+          title: "Safe but only partly analysed (grey, never plain green)",
+          outcome: {
+            state: "verdict",
+            truncated: true,
+            result: { verdict: "safe", score: 0.2, reasons: [] },
+          },
+        },
+        { title: "Server not running", outcome: { state: "offline", truncated: false } },
+        { title: "Couldn't read this email (422)", outcome: { state: "unreadable", truncated: false } },
+        { title: "Analysis failed (500)", outcome: { state: "failed", truncated: false } },
+      ];
+
+      const log = document.getElementById("log");
+      const container = document.getElementById("samples");
+
+      for (const sample of samples) {
+        const heading = document.createElement("h2");
+        heading.textContent = sample.title;
+
+        const message = document.createElement("div");
+        message.className = "message";
+        const body = document.createElement("p");
+        body.className = "fake-body";
+        body.textContent = "The email's body text would be here, below the banner.";
+        message.append(body);
+
+        const banner = createBanner(sample.outcome, {
+          onDismiss: () => {
+            log.textContent = `Dismissed: ${sample.title}`;
+          },
+          onRetry: () => {
+            log.textContent = `Try again clicked: ${sample.title}`;
+          },
+        });
+        body.before(banner);
+        container.append(heading, message);
+      }
+
+      // The hostile text must show as text and create no elements: no <img> or
+      // <script> inside any banner, and the attack strings visible as written.
+      const banners = document.querySelectorAll(`.${BANNER_CLASS}`);
+      const created = [...banners].flatMap((b) => [...b.querySelectorAll("img, script")]);
+      const text = [...banners].map((b) => b.textContent).join(" ");
+      const shownAsText = text.includes(IMG_ATTACK) && text.includes(SCRIPT_SUBJECT);
+      const check = document.getElementById("check");
+      const passed = created.length === 0 && shownAsText;
+      check.textContent = passed
+        ? `Hostile-text check passed: ${banners.length} banners, 0 elements created, attack text shown as text`
+        : `Hostile-text check FAILED: ${created.length} elements created, shown as text: ${shownAsText}`;
+      check.className = passed ? "passed" : "failed";
+
+      document.getElementById("dark").addEventListener("change", (event) => {
+        document.body.classList.toggle("dark", event.target.checked);
+      });
+    </script>
+  </body>
+</html>

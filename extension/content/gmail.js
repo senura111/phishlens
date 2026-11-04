@@ -6,8 +6,8 @@
 // then look for expanded messages we haven't read yet.
 //
 // Each message is fitted to the API's limits (payload.js) and sent to the service
-// worker, which calls the local API. For now the outcome is logged to the console;
-// the banner comes next.
+// worker, which calls the local API. The outcome is shown in a banner above the
+// message's body (banner.js) and logged to the console.
 
 // How long to wait after the first DOM change before looking for messages. Gmail
 // changes the DOM many times while it shows an email; waiting lets it finish.
@@ -42,7 +42,11 @@ function scanForMessages() {
     const id = message.getAttribute(ATTRIBUTES.messageId);
     const body = message.querySelector(SELECTORS.body);
     // No body: the message is collapsed. Read it once the user expands it.
-    if (!id || !body || messageOutcomes.has(id)) {
+    if (!id || !body) {
+      continue;
+    }
+    if (messageOutcomes.has(id)) {
+      showBanner(id, message, body);
       continue;
     }
     // Gmail can keep earlier views in the page, hidden. Skip them: on a hidden
@@ -74,6 +78,32 @@ async function analyseMessage(id, email) {
   const outcome = { state: "failed", ...answer, truncated };
   messageOutcomes.set(id, outcome);
   logOutcome(id, outcome);
+  // The next scan shows the banner.
+  scheduleScan();
+}
+
+// Puts a message's banner above its body, unless it's already there, the API is
+// still working on the message, or the user dismissed it. Gmail sometimes rebuilds
+// a message's DOM (e.g. when you come back to a thread), which removes our banner;
+// the next scan puts it back from the stored outcome, without asking the API again.
+function showBanner(id, message, body) {
+  const outcome = messageOutcomes.get(id);
+  if (!outcome || outcome.dismissed || message.querySelector(`.${BANNER_CLASS}`)) {
+    return;
+  }
+  const banner = createBanner(outcome, {
+    // Stays dismissed until this tab is reloaded.
+    onDismiss: () => {
+      outcome.dismissed = true;
+    },
+    // Forget the outcome, so the next scan analyses the message again.
+    onRetry: () => {
+      banner.remove();
+      messageOutcomes.delete(id);
+      scheduleScan();
+    },
+  });
+  body.before(banner);
 }
 
 // Returns the email in the shape of the API request (see the API contract in
