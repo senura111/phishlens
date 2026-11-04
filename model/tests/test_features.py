@@ -40,10 +40,58 @@ def ids(reasons):
         ("paypal.com", "paypal.com"),
         ("www.bbc.co.uk", "bbc.co.uk"),
         ("185.22.10.4", "185.22.10.4"),
+        # Suffixes the old hand-written list missed or had: the registrable part
+        # must include the name before the suffix.
+        ("www.ecu.edu.lk", "ecu.edu.lk"),
+        ("paypal.com.lk", "paypal.com.lk"),
+        ("lms.uom.ac.lk", "uom.ac.lk"),
+        ("shop.example.com.au", "example.com.au"),
+        ("login.bank.co.uk", "bank.co.uk"),
+        # Private suffixes: every user's site is its own.
+        ("paypal-login.github.io", "paypal-login.github.io"),
+        # A host that is itself a suffix, or not a valid name, stays as it is.
+        ("co.uk", "co.uk"),
+        ("localhost", "localhost"),
+        ("", ""),
     ],
 )
 def test_registrable_domain(host, expected):
     assert ft.registrable_domain(host) == expected
+
+
+@pytest.mark.parametrize(
+    "first, second",
+    [
+        ("ecu.edu.lk", "evil.edu.lk"),
+        ("paypal.com.lk", "evil.com.lk"),
+        ("uom.ac.lk", "evil.ac.lk"),
+        ("bank.com.au", "evil.com.au"),
+        ("bank.co.uk", "evil.co.uk"),
+    ],
+)
+def test_sites_under_the_same_suffix_are_different_sites(first, second):
+    assert ft.registrable_domain(first) != ft.registrable_domain(second)
+
+
+def test_link_text_mismatch_fires_between_sites_under_the_same_suffix():
+    # Before the Public Suffix List, both were cut to "edu.lk" and counted as one site.
+    email = make_email(links=[("www.ecu.edu.lk", "https://evil.edu.lk/login")])
+    assert ids(ft.link_text_mismatch(email)) == ["link_text_mismatch"]
+
+
+def test_public_suffix_list_is_read_from_the_package_not_the_network(monkeypatch):
+    # The list must come from the file inside the package: email domains must never
+    # trigger a download. Block all network connections and load it again.
+    import socket
+
+    from publicsuffixlist import PublicSuffixList
+
+    def no_network(*args, **kwargs):
+        raise AssertionError("tried to use the network")
+
+    monkeypatch.setattr(socket, "create_connection", no_network)
+    monkeypatch.setattr(socket.socket, "connect", no_network)
+    assert PublicSuffixList().privatesuffix("www.ecu.edu.lk") == "ecu.edu.lk"
 
 
 def test_host_of_handles_missing_scheme_ports_and_garbage():

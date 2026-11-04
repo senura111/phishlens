@@ -21,6 +21,8 @@ import re
 import unicodedata
 from urllib.parse import unquote, urlsplit
 
+from publicsuffixlist import PublicSuffixList
+
 HIGH, MEDIUM, LOW = "high", "medium", "low"
 MAX_QUOTE = 60  # longest piece of email text quoted in a message
 
@@ -47,14 +49,15 @@ def _summarise(rule_id: str, severity: str, findings: list[str]) -> list[dict]:
 
 # --- Domain helpers ------------------------------------------------------------------
 
-# Suffixes where a registrable domain has three parts, e.g. bbc.co.uk. (A full list is
-# the Public Suffix List; these cover the common cases without a dependency.)
-_TWO_PART_SUFFIXES = {
-    "co.uk", "org.uk", "ac.uk", "gov.uk", "com.au", "net.au", "org.au", "co.nz",
-    "co.jp", "ne.jp", "co.za", "com.br", "com.mx", "com.cn", "com.tr", "co.in",
-    "co.kr", "com.sg", "com.ar", "co.id", "com.my", "com.ph", "com.pk", "com.ng",
-    "com.sa", "com.lk", "com.hk", "com.tw",
-}  # fmt: skip
+# The Public Suffix List: every suffix under which anyone can register a name, such as
+# com, co.uk and edu.lk, plus "private" ones such as github.io, where every user gets
+# their own subdomain. A hand-written list missed suffixes like edu.lk, so
+# ecu.edu.lk and evil.edu.lk counted as the same site.
+# The publicsuffixlist package ships its own copy of the list and never downloads it
+# while running (only its separate publicsuffixlist-download command does), so no
+# email domain ever leaves the machine. The version pinned in requirements.txt ends
+# in the list's date; upgrade it to pick up new suffixes.
+_PUBLIC_SUFFIXES = PublicSuffixList()
 
 
 def host_of(url: str) -> str:
@@ -81,13 +84,13 @@ def is_ip(host: str) -> bool:
 
 
 def registrable_domain(host: str) -> str:
-    """The part of a host you have to buy: login.paypal.com -> paypal.com."""
+    """The part of a host you have to buy: login.paypal.com -> paypal.com,
+    www.ecu.edu.lk -> ecu.edu.lk."""
     if is_ip(host):
         return host
-    parts = host.split(".")
-    if len(parts) >= 3 and ".".join(parts[-2:]) in _TWO_PART_SUFFIXES:
-        return ".".join(parts[-3:])
-    return ".".join(parts[-2:])
+    # None when the host is itself a public suffix ("co.uk", "localhost") or isn't a
+    # valid name ("a..com"): then the host is the closest thing to an owner.
+    return _PUBLIC_SUFFIXES.privatesuffix(host) or host
 
 
 # Domains written in visible text ("paypal.com/login"). Only common TLDs count, so

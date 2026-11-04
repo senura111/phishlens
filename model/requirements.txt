@@ -9,6 +9,9 @@ scikit-learn==1.9.1
 pandas==3.1.0
 joblib==1.6.0
 beautifulsoup4==4.15.0
+# The Public Suffix List, bundled (no download at runtime). The version ends in the
+# list's date: 2026-10-18.
+publicsuffixlist==1.1.0.20261018
 
 # Exploration notebook
 notebook==7.6.4

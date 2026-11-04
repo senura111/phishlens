@@ -176,24 +176,43 @@ present, i.e. the log-odds it adds to an email's score. Rank is out of all 51,06
 
 | Rule | Weight | Typical push | Rank | Training emails where it fired |
 | --- | --- | --- | --- | --- |
-| urgency | +3.64 | +2.43 | 1 | 1,052 |
-| homoglyphs | +2.07 | +2.07 | 2 | 95 |
-| risky_attachment | +2.61 | +1.81 | 3 | 152 |
+| urgency | +3.69 | +2.46 | 1 | 1,052 |
+| homoglyphs | +1.97 | +1.97 | 2 | 95 |
+| risky_attachment | +2.60 | +1.80 | 3 | 152 |
 | sender_name_mismatch | +2.50 | +1.76 | 4 | 466 |
-| url_shortener | +2.13 | +1.42 | 5 | 117 |
-| link_text_mismatch | +1.27 | +1.27 | 6 | 177 |
-| sensitive_request | +1.21 | +1.21 | 7 | 146 |
-| lookalike_domain | +1.00 | +1.00 | 8 | 126 |
-| ip_link | −0.10 | −0.10 | 72 | 12 |
+| url_shortener | +2.08 | +1.39 | 5 | 117 |
+| link_text_mismatch | +1.32 | +1.32 | 6 | 177 |
+| sensitive_request | +1.23 | +1.23 | 7 | 146 |
+| lookalike_domain | +1.02 | +1.02 | 8 | 126 |
+| ip_link | −0.10 | −0.10 | 63 | 12 |
 
 The strongest single words push far less: "your" +0.37, "account" +0.32, "document"
 +0.25, "payment" +0.23. Text evidence adds up across many words instead: on phishing
-test emails the text adds +3.23 log-odds on average and the rules +1.94; on safe emails
+test emails the text adds +3.23 log-odds on average and the rules +1.95; on safe emails
 the rules add almost nothing (+0.08).
 
 - **Eight rules are the eight strongest inputs** in the whole model.
 - **ip_link is effectively unused by the model**: it fired in only 12 training emails,
   too few to learn from. The floor below covers it instead.
+
+### Which part of a domain counts
+
+Rules compare *registrable* domains, the part someone has to buy: `login.paypal.com`
+and `www.paypal.com` are both `paypal.com`. Where that part ends comes from the
+[Public Suffix List](https://publicsuffix.org/), bundled in the pinned
+`publicsuffixlist` package and never downloaded at runtime. It replaced a hand-written
+list of 28 suffixes that missed ones like `edu.lk` and `ac.lk`, so `ecu.edu.lk` and
+`evil.edu.lk` counted as the same site. The list also has "private" suffixes such as
+`github.io` and Amazon S3 website hosts, where every customer's site is its own.
+
+The switch changed rule results on 2 of 6,785 emails, both phishing, both
+lookalike_domain. A fake Wells Fargo site in an S3 bucket
+(`wellsfargo.usa.s3-website-us-east-1.amazonaws.com`) is now caught: before, the whole
+host counted as `amazonaws.com`, one of Amazon's official domains. And a host on the
+`dns-cloud.net` hosting service no longer "imitates icloud.com" just because the
+hosting service's own name contains "cloud". Test results (precision, recall,
+confusion matrices, verdicts, false positives) are unchanged; the weights above moved
+slightly after retraining.
 
 ### The "suspicious" floor (ip_link and homoglyphs only)
 
