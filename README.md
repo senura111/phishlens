@@ -142,10 +142,7 @@ rough, but the pattern is clear: marketing email is where false positives come f
 
 **Which approach is saved: text + rules.** Its F1 is a hair lower than text only (0.976
 vs 0.981), but it makes fewer false positives (5 vs 7, and 3 vs 4 on hard_ham), at the
-cost of 7 more missed phishing emails out of 559. It also leans a little less on the
-datasets' writing style: compared with the text-only model it puts 10% less weight on
-conversational style words (it, the, but, think) and 16% less on mailing-list topic
-words (linux, razor, perl).
+cost of 7 more missed phishing emails out of 559.
 
 ### Brand masking
 
