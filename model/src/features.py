@@ -144,12 +144,14 @@ def link_text_mismatch(email: dict) -> list[dict]:
         real = registrable_domain(real_host)
         if real in CLICK_TRACKERS:
             continue
-        for shown in domains_in_text(link["text"]):
-            shown = registrable_domain(shown)
+        # The domain as written in the text ("www.ecu.edu.lk") goes in the message, so
+        # the user sees what the link showed; the comparison uses its registrable part.
+        for written in _TEXT_DOMAIN_RE.findall(link["text"]):
+            shown = registrable_domain(written.lower())
             # A redirect that ends up at the shown domain is not a mismatch.
             if shown != real and shown not in _redirect_targets(link["href"]):
                 findings.append(
-                    f"A link shows '{quote(shown)}' but goes to '{quote(real_host)}'"
+                    f"A link shows '{quote(written)}' but goes to '{quote(real_host)}'"
                 )
                 break
     return _summarise("link_text_mismatch", HIGH, findings)

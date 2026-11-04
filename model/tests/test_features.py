@@ -79,6 +79,19 @@ def test_link_text_mismatch_fires_when_shown_domain_differs():
     ]
 
 
+def test_link_text_mismatch_quotes_the_domain_as_written():
+    # The message shows the whole domain from the link text, in its own case, so
+    # the user can judge it ("edu.lk" alone would mean nothing to them).
+    email = make_email(
+        links=[
+            ("Visit WWW.ecu.edu.lk", "http://navigate.e.navitas.com/c/123"),
+        ]
+    )
+    assert ft.link_text_mismatch(email)[0]["message"] == (
+        "A link shows 'WWW.ecu.edu.lk' but goes to 'navigate.e.navitas.com'"
+    )
+
+
 def test_link_text_mismatch_counts_extra_links():
     email = make_email(
         links=[
