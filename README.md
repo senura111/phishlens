@@ -6,8 +6,8 @@ looks suspicious.
 The classifier runs in a small Python API on your own machine, so email content never leaves
 your computer.
 
-> **Status:** Phase 1 (the model) and Phase 2 (the local API) are done, with the known
-> limitations listed below. The extension is not built yet. See [Roadmap](#roadmap).
+> **Status:** Phases 1 to 3 (the model, the local API and the Chrome extension) are
+> done, with the known limitations listed below. See [Roadmap](#roadmap).
 
 ## How it works
 
@@ -28,7 +28,8 @@ Gmail tab ─> content script (reads the open email)
    phrases, requests for passwords or gift cards, and more) with a TF-IDF + Logistic
    Regression classifier.
 4. The extension shows a banner above the email: **red** for phishing, **amber** for
-   suspicious, **green** for safe, with a list of human-readable reasons.
+   suspicious, **green** for safe, with a list of human-readable reasons. **Grey** means
+   the email couldn't be checked, or only partly.
 
 ## Privacy and security
 
@@ -43,7 +44,7 @@ Gmail tab ─> content script (reads the open email)
 | ----- | ---- | ------ |
 | 1 | Model: preprocessing, rule-based signals, scikit-learn classifier | Done (see [Known limitations](#known-limitations)) |
 | 2 | Local API: FastAPI `POST /analyze` and `GET /health` | Done (see [Local API](#local-api-phase-2)) |
-| 3 | Chrome extension (Manifest V3): Gmail banner and popup | Not started |
+| 3 | Chrome extension (Manifest V3): Gmail banner and popup | Done (see [Chrome extension](#chrome-extension-phase-3)) |
 | 4 | Polish: link highlighting, toolbar badge, sensitivity setting, demo GIF | Optional |
 
 ## Model results (v1)
@@ -426,6 +427,119 @@ analysed in under 1 second. They take at most about 0.3 s.
 One training-only regex (`_CORPUS_ARTIFACTS` in `preprocess.py`) has the same flaw.
 It only runs on the downloaded datasets, never on API requests, so it was left as is.
 
+## Chrome extension (Phase 3)
+
+A Manifest V3 extension in plain JavaScript, with no framework and no build step. It
+has three parts, which talk to each other with `chrome.runtime.sendMessage`:
+
+| Part | Runs | Does |
+| --- | --- | --- |
+| Content scripts (`extension/content/`) | Inside the Gmail tab | Find opened emails, read them, show the banner |
+| Service worker (`extension/background/`) | In the background | The only part that calls the local API |
+| Popup (`extension/popup/`) | When you click the toolbar icon | Shows whether the server is running, and what the colours mean |
+
+### The banner
+
+| Banner | When |
+| --- | --- |
+| **Red**: "This email is likely phishing." | Verdict `phishing` |
+| **Amber**: "This email shows signs of phishing. Check carefully before clicking links or replying." | Verdict `suspicious`. Most phishing lands here, because red needs rule-based evidence (see [Verdict rules](#verdict-rules)), so the wording is a clear warning |
+| **Green**: "No signs of phishing found." | Verdict `safe`. Any reasons are collapsed grey "minor notes", not warnings: a lone rule hit on a legitimate newsletter shouldn't look alarming |
+| **Grey**: partly analysed | Verdict `safe`, but part of the email had to be left out (see below), so it is never shown as plain green |
+| **Grey**: server not running / couldn't read this email / analysis failed | No verdict: nothing listening on port 8000, a 422 (e.g. no sender address found), or a 500. Each has its own message and a Try again button |
+
+Red and amber list their reasons, with severity labels, open by default. Values a
+reason quotes (domains, phrases) are highlighted, so for a mismatched link you see both
+the domain the link shows and the one it really goes to. Every banner can be
+dismissed; it stays dismissed until the tab is reloaded.
+
+[docs/banner-preview.html](docs/banner-preview.html) shows every state with sample
+data. Open it in Chrome; no server or extension needed.
+
+### Reading Gmail
+
+- **All Gmail selectors live in `extension/content/selectors.js`**, so a change in
+  Gmail's markup means editing one file. They use stable attributes
+  (`data-message-id`, `email`, `download_url`) where Gmail has them, and never visible
+  text: Gmail's interface can be in any language (it was tested in Sinhala).
+- **Gmail is a single-page app**: opening an email changes the page instead of loading
+  a new one. A `MutationObserver` reports DOM changes; a burst of changes leads to one
+  scan, 300 ms after the first.
+- **Each message is analysed once.** Results are kept by message id in the tab's
+  memory (never saved). When Gmail rebuilds a message, the banner is put back from
+  memory without asking the API again.
+- **Every expanded message in a thread gets its own banner**, because phishing can be
+  a reply inside a real conversation from a hacked account.
+- **What is read:** sender name and address, subject, body text (`innerText`, which
+  leaves out text hidden with CSS, a trick for padding emails with harmless words),
+  links with their real `href` (not Gmail's `data-saferedirecturl` redirect), and
+  attachment file names. Attachments are never downloaded or opened.
+
+### Fitting the API's limits
+
+`extension/content/payload.js` shortens each email to the API's caps rather than
+letting the API reject it. Anything left out is a blind spot an attacker could hide
+in, so the banner then says the email was only partly analysed.
+
+- **Invisible characters** (Unicode category Cf: zero-width spaces, soft hyphens,
+  text-direction controls) are removed from free text. Phishers put them inside words
+  ("pass", zero-width space, "word") so that a rule looking for "password" misses it, or use a right-to-left override to
+  show "Invoice.exe" as "Invoice.jpg". The sender address and link hrefs are kept
+  exactly as Gmail shows them: cleaning them could turn a fake domain into a
+  real-looking one.
+- **Exact duplicate links** (same text and same href) are removed before the 1,000-link
+  cap. Links that share an href but differ in text are kept: one of them may be the
+  link whose text lies.
+- **Long values are cut from the end**, so an href keeps its domain. The cut never
+  splits a character in two.
+- **The 100 KB limit is counted in bytes** of the JSON actually sent (accents take 2
+  bytes, emoji 4, escaped characters up to 6). If the email is too big, the body is
+  shortened first but keeps its first 20,000 characters, then links are dropped from
+  the end.
+
+`extension/tests/payload.test.js` has 23 tests for this, run with Node's built-in
+test runner.
+
+### Security design
+
+- **No `innerHTML`.** The banner is built with `createElement` and `textContent`, so
+  email text (which reasons can quote) always shows as text. The preview page includes
+  reasons quoting `<img src=x onerror=alert(1)>` and a `<script>` subject, and checks
+  that no element is created from them.
+- **Minimal permissions.** The manifest asks for no `permissions` at all, only
+  `host_permissions` for Gmail and `http://127.0.0.1:8000/*`. No `tabs`, no `storage`,
+  no `<all_urls>`.
+- **Only the service worker calls the API.** Its host permission lets it read the
+  API's answers without CORS. Content scripts can't: their requests count as coming
+  from `mail.google.com`. The API sends no CORS headers, so websites can't read it.
+- **The service worker checks every answer** against the API contract and passes on
+  only the contract's fields.
+- **Nothing is logged but metadata.** The console shows message ids, verdicts, scores
+  and reason ids, never reason messages or email content.
+
+### Found while testing in Gmail
+
+- A real university newsletter sent through a mailing service gets amber, because its
+  link text shows the university's site while the link goes to a tracker. The rule is
+  unchanged (see [Known limitations](#known-limitations)), but the reason now quotes
+  the domain exactly as the link text writes it (`www.ecu.edu.lk`, not `edu.lk`).
+- That led to a real detection bug: the old hand-written suffix list counted every
+  S3-hosted website as Amazon's own `amazonaws.com`, which exempted all of them from
+  the lookalike check; the [Public Suffix List](#which-part-of-a-domain-counts) fixed
+  it.
+
+### Extension limitations
+
+- **Threads with several expanded messages** are handled (each gets its own banner)
+  but haven't been tested in real Gmail yet, only on a test page.
+- **Gmail's own clipping.** Gmail cuts off messages over about 102 KB ("[Message
+  clipped]"). The extension only sees the part Gmail shows, and can't tell it was
+  clipped without matching visible text, which would break in other languages. So
+  such an email is analysed on its visible part without the "partly analysed" notice.
+- **Gmail markup changes** can stop the extension from finding emails. Selectors were
+  last checked against live Gmail on 2026-11-04.
+- **The extension's own text is in English only.**
+
 ## Project layout
 
 ```
@@ -433,7 +547,7 @@ phishlens/
 ├── model/       # Python: preprocessing, rules, training, predict.py
 ├── api/         # FastAPI wrapper around the model
 ├── extension/   # Chrome extension (vanilla JS, no build step)
-└── docs/        # screenshots and notes
+└── docs/        # banner preview, icon artwork, screenshots
 ```
 
 ## How to run
@@ -504,6 +618,26 @@ curl -X POST http://127.0.0.1:8000/analyze -H "Content-Type: application/json" -
 ```
 
 The tests run with the rest: `.venv\Scripts\python -m pytest`.
+
+### Chrome extension (Phase 3)
+
+1. Start the local API (see above) and leave it running.
+2. In Chrome, open `chrome://extensions`, turn on **Developer mode**, click **Load
+   unpacked** and choose the `extension` folder.
+3. Open Gmail (reload the tab if it was already open) and open an email. The banner
+   appears above it. Click the PhishLens toolbar icon to see whether the server is
+   running.
+
+After changing the extension's code, click the reload arrow on its card in
+`chrome://extensions`, then reload the Gmail tab: the old content script stays in an
+open tab until it's reloaded.
+
+The extension's tests need [Node.js](https://nodejs.org/) 20 or later, with no
+packages to install:
+
+```bash
+node --test extension/tests/payload.test.js
+```
 
 ## License
 
