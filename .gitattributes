@@ -1,0 +1,20 @@
+# How git treats line endings, for everyone who clones the repo. This overrides each
+# person's own core.autocrlf setting, which on Windows usually turns LF into CRLF on
+# checkout.
+#
+# The extension and the JS tests must check out byte for byte as committed:
+# parity.test.mjs compares a hash of extension/analyzer/generated/model.json with the
+# one recorded in tests/js/fixtures/golden.json, and the release zip ships these files.
+# "text=auto" lets git decide what is text; "eol=lf" keeps LF in text files on every
+# system.
+extension/** text=auto eol=lf
+tests/js/** text=auto eol=lf
+
+# Binary files are never converted (later lines win over the ones above).
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.ico binary
+*.webp binary
+*.zip binary
