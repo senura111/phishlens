@@ -81,7 +81,8 @@ phishlens/
     ├── banner-preview.html    # every banner state with sample data, incl. hostile text
     ├── icon.svg               # original artwork for the extension icons
     ├── privacy-policy.md
-    ├── store-listing.md       # Edge Add-ons listing text and answers
+    ├── store/                 # Edge Add-ons submission: README (every field), texts,
+    │                          # images, and the store zip (committed on purpose)
     └── screenshots/
 ```
 

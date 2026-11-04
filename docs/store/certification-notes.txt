@@ -1,0 +1,35 @@
+PhishLens shows a phishing warning banner above emails in Gmail on the web (https://mail.google.com). There is no PhishLens account, sign-in, server or configuration: no test credentials are needed. Any Gmail account works.
+
+HOW TO TEST
+1. Install the extension, then sign in to any Gmail account at https://mail.google.com. If Gmail was already open, reload the tab.
+2. Open any email. A coloured banner appears above the email's body.
+3. Click the PhishLens toolbar icon. The popup says "Ready: emails are checked inside your browser."
+
+TWO TEST EMAILS (red and green)
+Compose each email in Gmail, send it to your own address, then open it from the inbox.
+
+Test email 1, red banner
+- Subject: Your account will be suspended
+- Body: Your account will be suspended within 24 hours. Log in at paypal.com/login to verify
+- Before sending, select the words "paypal.com/login" in the body, press Ctrl+K (Insert link; Cmd+K on a Mac) and set the web address to: http://203.0.113.5/login
+  (203.0.113.5 is an address reserved for documentation, so the link leads nowhere.)
+Expected: a red banner, "This email is likely phishing.", with four reasons:
+  High: A link shows 'paypal.com' but goes to '203.0.113.5'
+  High: A link goes to a raw IP address (203.0.113.5)
+  Medium: Uses pressure or threats to rush you: 'account will be suspended', 'within 24 hours'
+  Low: The wording is similar to phishing emails (for example 'your', 'account', 'verify'). On its own this is a weak sign.
+  Model score 0.99.
+Gmail may show its own warning on this email as well; that is expected.
+
+Test email 2, green banner
+- Subject: Lunch on Friday?
+- Body: Hi, are you free for lunch on Friday? The new place near the library opens at noon. Let me know.
+Expected: a green banner, "No signs of phishing found.", with no reasons.
+
+OTHER NOTES
+- The manifest declares no permissions and no host permissions. The only site access is the content script on https://mail.google.com/*.
+- The extension makes no network requests. The only file it loads is its own model (analyzer/generated/model.json), from inside the package. You can confirm this in the service worker's Network panel on the extensions page.
+- All code ships in the package; there is no remote code and no minified or obfuscated code.
+- The banner text is in English; Gmail's own interface can be in any language.
+- Every banner has a Dismiss button. Red and amber banners list their reasons, which "Hide reasons" collapses.
+- Source code: https://github.com/senura111/phishlens

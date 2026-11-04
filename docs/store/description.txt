@@ -1,0 +1,32 @@
+PhishLens warns you about phishing emails in Gmail, and tells you why.
+
+When you open an email in Gmail on the web (mail.google.com), PhishLens shows a coloured banner above it:
+
+- Red: this email is likely phishing. Don't click its links, open its attachments or reply with any personal details.
+- Amber: this email shows signs of phishing. Check carefully before clicking links or replying.
+- Green: no signs of phishing found. Anything small worth knowing is listed as collapsed "minor notes".
+- Grey: the email couldn't be checked, or was too long to check in full.
+
+Every warning lists plain reasons you can check yourself, for example:
+
+- a link that shows one website but really goes to another,
+- a sender domain that imitates a well-known brand (such as paypa1.com),
+- links to raw IP addresses or URL shorteners,
+- look-alike letters from other alphabets hidden in words or domains,
+- pressure tactics ("your account will be suspended within 24 hours"),
+- requests for passwords, card details or gift cards,
+- risky attachments, such as "Invoice.pdf.exe".
+
+Values a reason quotes, such as both domains of a mismatched link, are highlighted so they're easy to compare.
+
+PRIVATE BY DESIGN
+PhishLens analyses emails inside your browser, with code and a model that ship with the extension. It never sends your emails anywhere, never stores them, and has no servers, accounts, analytics or tracking. It only runs on mail.google.com and asks for no other permissions.
+
+HOW TO USE IT
+After installing, open Gmail (reload the tab if it was already open) and open an email. The banner appears above it. Click the PhishLens toolbar icon to check that it's ready and to see what the colours mean. There is nothing to set up and no account to create.
+
+HOW IT WORKS
+Rule-based checks are combined with a machine-learning model (TF-IDF and logistic regression) trained on public phishing and legitimate email datasets. A red warning always needs concrete evidence from the rules, such as a mismatched link, so the wording of an email alone can never make it red. The project is open source: https://github.com/senura111/phishlens
+
+LIMITATIONS
+PhishLens is an aid, not a guarantee. It can miss phishing, and it sometimes warns about legitimate email, such as receipts, password resets, or newsletters whose links go through click-tracking services. It is tuned for emails written in English, and its own text is in English. It works with Gmail on the web only, not with other email services or apps. If Gmail changes its page layout, PhishLens may stop finding emails until it is updated.

@@ -30,6 +30,8 @@ htmlcov/
 # --- Chrome extension packaging ---
 *.crx
 *.zip
+# The store submission package is committed on purpose (see docs/store/README.md).
+!docs/store/*.zip
 
 # --- Editors / OS ---
 .vscode/

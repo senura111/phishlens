@@ -692,7 +692,7 @@ phishlens/
 ├── extension/   # browser extension (vanilla JS, no build step); only shipped files
 │   └── analyzer/  # the JavaScript copy of the model (Phase 5)
 ├── tests/js/    # JS tests and golden fixtures (Node's test runner)
-└── docs/        # banner preview, icon artwork, screenshots, privacy policy, store listing
+└── docs/        # banner preview, icon artwork, screenshots, privacy policy, store submission
 ```
 
 ## For developers
@@ -807,8 +807,9 @@ the next `node --test tests/js/` then checks JavaScript against all of them.
 To package a release (the zip attached to the GitHub release, and the one a store
 takes), run both test suites, then zip the *contents* of `extension/` so `manifest.json`
 is at the top level of the zip, and name it `phishlens-extension-v<version>.zip` with
-the version from `manifest.json`. The store listing text is in
-[docs/store-listing.md](docs/store-listing.md).
+the version from `manifest.json`. The Microsoft Edge Add-ons submission (listing
+text, images, certification notes and the store zip) is in
+[docs/store/](docs/store/README.md).
 
 ## License
 
