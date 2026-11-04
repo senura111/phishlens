@@ -10,5 +10,11 @@
   "action": {
     "default_title": "PhishLens",
     "default_popup": "popup/popup.html"
-  }
+  },
+  "content_scripts": [
+    {
+      "matches": ["https://mail.google.com/*"],
+      "js": ["content/selectors.js", "content/gmail.js"]
+    }
+  ]
 }

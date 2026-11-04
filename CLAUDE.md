@@ -130,6 +130,8 @@ pass. At the end of each phase, update the README with what was built and how to
   is a blind spot an attacker can exploit.
   - Remove duplicate links (same `href`) before applying the 1,000-link cap.
   - Truncate long `href`s from the end, so the domain is kept.
+  - Strip zero-width characters (e.g. U+200B) from every text field before sending:
+    phishers put them inside words like "password" so that rules miss them.
   - If any field or list had to be truncated, the banner must say the email was only
     partly analysed, never show a plain green "safe".
 - Three states that aren't verdicts, each with its own message:
@@ -206,7 +208,8 @@ This is a security tool, so it must not introduce its own vulnerabilities.
 - JS: `const`/`let`, no frameworks, no bundler
 - Keep every Gmail DOM selector in `extension/content/selectors.js`. Gmail changes its markup,
   so selectors must be easy to update in one place. Prefer stable attributes over
-  obfuscated class names.
+  obfuscated class names. Never match visible text ("to me", "Message clipped"): Gmail's
+  interface can be in any language (the author's is in Sinhala).
 - Small commits with clear messages, e.g. `feat(model): add lookalike-domain rule`
 - Edit files with the file-editing tools, not sed/echo/heredocs; shell escapes like \n have
   corrupted files before.
