@@ -50,6 +50,7 @@ phishlens/
 │   ├── manifest.json
 │   ├── content/
 │   │   ├── selectors.js       # ALL Gmail DOM selectors live here
+│   │   ├── payload.js         # fit an email to the API's caps (pure, no DOM)
 │   │   ├── gmail.js           # detect opened email, extract content
 │   │   ├── banner.js          # render the warning banner
 │   │   └── banner.css
@@ -59,8 +60,11 @@ phishlens/
 │   │   ├── popup.html
 │   │   ├── popup.js
 │   │   └── popup.css
-│   └── icons/
+│   ├── icons/
+│   └── tests/
+│       └── payload.test.js    # run with: node --test extension/tests/
 └── docs/
+    ├── banner-preview.html    # every banner state with sample data, incl. hostile text
     └── screenshots/
 ```
 
@@ -102,7 +106,10 @@ pass. At the end of each phase, update the README with what was built and how to
 - `manifest.json`: content scripts on `https://mail.google.com/*`, a background service worker,
   `host_permissions` for `https://mail.google.com/*` and `http://127.0.0.1:8000/*`, a popup.
 - Content scripts can't use ES module imports, so list them in order in the manifest
-  (selectors.js, banner.js, gmail.js).
+  (selectors.js, payload.js, banner.js, gmail.js).
+- `payload.js` must run both as a plain content script and under `node --test`, with no
+  build step: it defines its functions at the top level and, only when `module` exists
+  (Node), also exports them with `module.exports`.
 - Gmail is a single-page app: use a MutationObserver to detect when an email is opened. Extract
   sender name/address, subject, body text, links, and attachment file names (names only, never
   download or open attachments), then send them to the service worker with

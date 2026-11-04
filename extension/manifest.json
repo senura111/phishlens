@@ -1,0 +1,14 @@
+{
+  "manifest_version": 3,
+  "name": "PhishLens",
+  "version": "0.1.0",
+  "description": "Warns about phishing emails in Gmail and explains why. The analysis runs on your own computer.",
+  "host_permissions": ["https://mail.google.com/*", "http://127.0.0.1:8000/*"],
+  "background": {
+    "service_worker": "background/service-worker.js"
+  },
+  "action": {
+    "default_title": "PhishLens",
+    "default_popup": "popup/popup.html"
+  }
+}

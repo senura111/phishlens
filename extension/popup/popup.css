@@ -1,0 +1,81 @@
+:root {
+  --text: #1f1f1f;
+  --muted: #5f6368;
+  --background: #ffffff;
+  --code-background: #f1f3f4;
+  --link: #0b57d0;
+  --running: #137333;
+  --offline: #5f6368;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --text: #e8eaed;
+    --muted: #9aa0a6;
+    --background: #202124;
+    --code-background: #303134;
+    --link: #8ab4f8;
+    --running: #81c995;
+    --offline: #9aa0a6;
+  }
+}
+
+body {
+  width: 320px;
+  margin: 0;
+  padding: 16px;
+  font: 14px/1.45 system-ui, sans-serif;
+  color: var(--text);
+  background: var(--background);
+}
+
+h1 {
+  margin: 0 0 12px;
+  font-size: 18px;
+}
+
+.status {
+  margin: 0 0 12px;
+  font-weight: 600;
+}
+
+/* A dot before the status, coloured by state. */
+.status::before {
+  content: "";
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  margin-right: 8px;
+  border-radius: 50%;
+  background: var(--muted);
+}
+
+.status-running::before {
+  background: var(--running);
+}
+
+.status-offline::before {
+  background: var(--offline);
+}
+
+#help p {
+  margin: 0 0 6px;
+}
+
+code {
+  display: block;
+  margin-bottom: 12px;
+  padding: 8px;
+  border-radius: 4px;
+  background: var(--code-background);
+  font-size: 12px;
+  overflow-wrap: anywhere;
+}
+
+.about {
+  color: var(--muted);
+}
+
+a {
+  color: var(--link);
+}

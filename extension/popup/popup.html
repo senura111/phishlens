@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>PhishLens</title>
+    <link rel="stylesheet" href="popup.css" />
+  </head>
+  <body>
+    <h1>PhishLens</h1>
+
+    <p id="status" class="status status-checking">Checking the local server...</p>
+    <div id="help" hidden>
+      <p>To start it, run this from the phishlens folder:</p>
+      <code>.venv\Scripts\python -m uvicorn api.main:app --host 127.0.0.1 --port 8000</code>
+    </div>
+
+    <p class="about">
+      PhishLens checks the emails you open in Gmail for signs of phishing and explains
+      why. The analysis runs on a small server on your own computer, so email content
+      never leaves it.
+    </p>
+    <a href="https://github.com/senura111/phishlens" target="_blank" rel="noopener">
+      Source code on GitHub
+    </a>
+
+    <!-- Extension pages can't run inline scripts (Manifest V3's content security
+         policy), so the code lives in its own file. -->
+    <script src="popup.js"></script>
+  </body>
+</html>
