@@ -62,7 +62,7 @@ phishlens/
 │   │   └── popup.css
 │   ├── icons/
 │   └── tests/
-│       └── payload.test.js    # run with: node --test extension/tests/
+│       └── payload.test.js    # run with: node --test extension/tests/payload.test.js
 └── docs/
     ├── banner-preview.html    # every banner state with sample data, incl. hostile text
     └── screenshots/
@@ -128,10 +128,15 @@ pass. At the end of each phase, update the README with what was built and how to
   replying."
 - Fitting the API's length caps (see the API contract): anything the extension truncates
   is a blind spot an attacker can exploit.
-  - Remove duplicate links (same `href`) before applying the 1,000-link cap.
+  - Remove duplicate links (same `text` and same `href`) before applying the
+    1,000-link cap. Keep links that share an `href` but differ in text: one of them
+    may be the link whose text pretends to go somewhere else.
   - Truncate long `href`s from the end, so the domain is kept.
-  - Strip zero-width characters (e.g. U+200B) from every text field before sending:
-    phishers put them inside words like "password" so that rules miss them.
+  - Strip invisible format characters (Unicode category Cf, e.g. U+200B zero-width
+    space) from free text before sending: sender name, subject, body, link text and
+    attachment names. Phishers put them inside words like "password" so that rules
+    miss them. Keep `sender_email` and `href`s exactly as Gmail shows them: cleaning
+    them could turn a fake domain into a real-looking one.
   - If any field or list had to be truncated, the banner must say the email was only
     partly analysed, never show a plain green "safe".
 - Three states that aren't verdicts, each with its own message:

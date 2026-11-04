@@ -14,7 +14,7 @@
   "content_scripts": [
     {
       "matches": ["https://mail.google.com/*"],
-      "js": ["content/selectors.js", "content/gmail.js"]
+      "js": ["content/selectors.js", "content/payload.js", "content/gmail.js"]
     }
   ]
 }

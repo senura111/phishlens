@@ -5,17 +5,19 @@
 // changes the page's DOM. A MutationObserver tells us whenever the DOM changes, and we
 // then look for expanded messages we haven't read yet.
 //
-// Step 2 of Phase 3: messages are only read and summarised in the console. Sending
-// them to the API comes next.
+// Each message is fitted to the API's limits (payload.js) and sent to the service
+// worker, which calls the local API. For now the outcome is logged to the console;
+// the banner comes next.
 
 // How long to wait after the first DOM change before looking for messages. Gmail
 // changes the DOM many times while it shows an email; waiting lets it finish.
 const SCAN_DELAY_MS = 300;
 
-// Messages already read, by their data-message-id. Without this, every DOM change
-// (and Gmail makes many) would read the same message again. It lives only in this
-// tab's memory and holds no email content.
-const seenMessages = new Set();
+// Outcomes by data-message-id: null while the API is working on a message, then
+// { state, result, truncated } (see analyseMessage). Without this, every DOM change
+// (and Gmail makes many) would send the same message again. It lives only in this
+// tab's memory; the reasons can quote a domain from the email, so it's never saved.
+const messageOutcomes = new Map();
 
 let scanTimer = null;
 
@@ -40,7 +42,7 @@ function scanForMessages() {
     const id = message.getAttribute(ATTRIBUTES.messageId);
     const body = message.querySelector(SELECTORS.body);
     // No body: the message is collapsed. Read it once the user expands it.
-    if (!id || !body || seenMessages.has(id)) {
+    if (!id || !body || messageOutcomes.has(id)) {
       continue;
     }
     // Gmail can keep earlier views in the page, hidden. Skip them: on a hidden
@@ -49,10 +51,29 @@ function scanForMessages() {
     if (!body.checkVisibility()) {
       continue;
     }
-    seenMessages.add(id);
-    const email = readMessage(message, body);
-    logSummary(id, email);
+    messageOutcomes.set(id, null);
+    analyseMessage(id, readMessage(message, body));
   }
+}
+
+// Sends one message to the service worker and stores the outcome:
+//   state      "verdict", "offline", "unreadable" or "failed" (service-worker.js)
+//   result     the API's verdict, score and reasons (only when state is "verdict")
+//   truncated  true if payload.js had to cut something: only partly analysed
+async function analyseMessage(id, email) {
+  const { request, truncated } = fitEmail(email);
+  let answer;
+  try {
+    answer = await chrome.runtime.sendMessage({ type: "analyze", request });
+  } catch {
+    // After the extension is reloaded, a content script that was already in the
+    // page can't reach it any more ("Extension context invalidated"). Reloading
+    // the Gmail tab fixes that.
+    console.warn("PhishLens: can't reach the extension. Reload this tab.");
+  }
+  const outcome = { state: "failed", ...answer, truncated };
+  messageOutcomes.set(id, outcome);
+  logOutcome(id, outcome);
 }
 
 // Returns the email in the shape of the API request (see the API contract in
@@ -119,13 +140,17 @@ function fileNameFromDownloadUrl(downloadUrl) {
   }
 }
 
-// Logs sizes and counts only, never the content itself (CLAUDE.md security rules).
-function logSummary(id, email) {
-  console.log(
-    `PhishLens read ${id}: sender ${email.sender_email ? "found" : "MISSING"}, ` +
-      `subject ${email.subject.length} chars, body ${email.body_text.length} chars, ` +
-      `${email.links.length} links, ${email.attachments.length} attachments`
-  );
+// Logs the verdict, score and reason ids, never the reasons' messages: they can
+// quote a domain or phrase from the email (CLAUDE.md security rules).
+function logOutcome(id, outcome) {
+  let summary = outcome.state;
+  if (outcome.state === "verdict") {
+    const { verdict, score, reasons } = outcome.result;
+    const ids = reasons.map((reason) => reason.id).join(", ") || "no reasons";
+    summary = `${verdict} (score ${score.toFixed(2)}; ${ids})`;
+  }
+  const partly = outcome.truncated ? ", only partly analysed" : "";
+  console.log(`PhishLens ${id}: ${summary}${partly}`);
 }
 
 const observer = new MutationObserver(scheduleScan);
