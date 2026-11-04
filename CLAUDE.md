@@ -153,6 +153,31 @@ pass. At the end of each phase, update the README with what was built and how to
 - Sensitivity setting in the popup
 - Demo GIF and screenshots in the README
 
+### Phase 5: Browser-only version (branch `browser-only`)
+Goal: the extension analyses emails inside the browser, with no Python server, so people
+can install it without Python and it can be published on Microsoft Edge Add-ons.
+
+Plan:
+1. Export the trained model (TF-IDF vocabulary, IDF values, Logistic Regression weights
+   and intercept, rule weights) to JSON.
+2. Port the shared cleaning from `preprocess.py` to JavaScript.
+3. Port the eight rules and `decide_verdict()` to JavaScript, including the floor rules.
+4. Port the scoring so the JavaScript score matches Python.
+5. Parity tests: for every test email, JavaScript must give the same cleaned text, same
+   reasons, same verdict, and a score within 1e-6 of Python.
+6. Switch the extension to analyse emails in the browser and remove the server
+   dependency.
+7. Update docs, privacy policy and store listing materials.
+
+Rules:
+- Python stays as the training pipeline and reference implementation. When Python and
+  JavaScript disagree, Python is right; fix the JavaScript (or fix both, with a test).
+- Use Node's built-in test runner for JS tests (no frameworks, no bundler).
+- Committed test fixtures must use only our own example emails, never text from the
+  Nazario or SpamAssassin datasets.
+- Keep all JS tests, golden fixtures and any package.json outside `extension/` (in
+  `tests/js/`), so `extension/` contains only files that ship.
+
 ## API contract
 `POST /analyze`
 ```json
