@@ -6,6 +6,11 @@ looks suspicious.
 The classifier runs in a small Python API on your own machine, so email content never leaves
 your computer.
 
+<p align="center">
+  <img src="docs/screenshots/banner-red-phishing.png" width="600"
+       alt="A red PhishLens banner above a Gmail email titled 'Your account will be suspended': 'This email is likely phishing.' Its reasons: a link shows paypal.com but goes to 185.22.10.4, a link goes to a raw IP address, urgency phrases, and phishing-like wording. Model score 0.99.">
+</p>
+
 > **Status:** Phases 1 to 3 (the model, the local API and the Chrome extension) are
 > done, with the known limitations listed below. See [Roadmap](#roadmap).
 
@@ -287,6 +292,10 @@ footers. Some biases can't be cleaned away:
   reason quoting "will be deleted" plus phishing_language. No rule-based evidence
   fired, so the verdict rules kept it out of red, as designed, but it is still a
   false alarm.
+
+  <img src="docs/screenshots/banner-amber-transactional-limitation.png" width="500"
+       alt="Amber banner on Microsoft's 'Keep your Copilot history: Sign in by December 31, 2026' email. Reasons: urgency ('will be deleted') and phishing-like wording. Score 0.91.">
+
   **Future fix:** train on modern legitimate transactional email (receipts, password
   resets, shipping notices, account alerts), then re-check the urgency phrases that
   genuine services use.
@@ -307,7 +316,7 @@ footers. Some biases can't be cleaned away:
   service often has links whose text shows the sender's own site while the real link
   goes to the service's click tracker. A real university newsletter shows
   "www.ecu.edu.lk" but links to a `navitas.com` tracking URL, and gets an amber
-  "suspicious" verdict (score 0.58, link_text_mismatch). To the extension this looks
+  "suspicious" verdict (score 0.59, link_text_mismatch). To the extension this looks
   exactly like phishing. The obvious fixes all weaken detection or privacy: trusting
   links on the sender's domain or allowlisting more mailing services gives phishers a
   way through (they use the same services), and following the redirect to see where
@@ -315,6 +324,10 @@ footers. Some biases can't be cleaned away:
   So the rule stays, and the banner shows both domains, so you can judge for
   yourself. (The rule already skips a short list of well-known trackers such as
   SendGrid and Mailchimp.)
+
+  <img src="docs/screenshots/banner-amber-ecu-false-positive.png" width="600"
+       alt="Amber banner on an Edith Cowan University Sri Lanka newsletter. Reasons: a link shows www.ecu.edu.lk but goes to navigate.e.navitas.com, plus phishing-like wording. Score 0.59.">
+
 - **The test set shares these biases.** It comes from the same two datasets, so the
   scores above overstate real-world accuracy.
 - **Disguised file names in the body text.** A double extension like "Invoice.pdf.exe"
@@ -448,10 +461,43 @@ has three parts, which talk to each other with `chrome.runtime.sendMessage`:
 | **Grey**: partly analysed | Verdict `safe`, but part of the email had to be left out (see below), so it is never shown as plain green |
 | **Grey**: server not running / couldn't read this email / analysis failed | No verdict: nothing listening on port 8000, a 422 (e.g. no sender address found), or a 500. Each has its own message and a Try again button |
 
+<table>
+  <tr>
+    <th>Green: a Reddit digest</th>
+    <th>Grey: the local server isn't running</th>
+  </tr>
+  <tr>
+    <td><img src="docs/screenshots/banner-green-safe.png"
+             alt="A green PhishLens banner above a Reddit email: 'No signs of phishing found.'"></td>
+    <td><img src="docs/screenshots/banner-grey-offline.png"
+             alt="A grey PhishLens banner: 'PhishLens can't check this email: its local server isn't running. Start the server (the PhishLens popup shows how), then click Try again.' With Try again and Dismiss buttons."></td>
+  </tr>
+</table>
+
 Red and amber list their reasons, with severity labels, open by default. Values a
 reason quotes (domains, phrases) are highlighted, so for a mismatched link you see both
 the domain the link shows and the one it really goes to. Every banner can be
 dismissed; it stays dismissed until the tab is reloaded.
+
+The two test emails below have the same words ("Your account will be suspended within
+24 hours. Log in at paypal.com/login to verify"), and the model scores both about
+0.99. Only the link differs. On the left it shows `paypal.com` but goes to a raw IP
+address, so the rules find hard evidence and the banner is red. On the right the link
+goes where its text says, so only the wording is suspicious, and the
+[verdict rules](#verdict-rules) cap it at amber.
+
+<table>
+  <tr>
+    <th>A link that lies: red</th>
+    <th>An honest link: amber</th>
+  </tr>
+  <tr>
+    <td width="40%"><img src="docs/screenshots/banner-red-phishing.png"
+             alt="Red banner: 'This email is likely phishing.' Reasons: a link shows paypal.com but goes to 185.22.10.4, a link goes to a raw IP address, urgency phrases, phishing-like wording. Score 0.99."></td>
+    <td width="60%"><img src="docs/screenshots/banner-amber-honest-link.png"
+             alt="Amber banner on the same email text: 'This email shows signs of phishing. Check carefully before clicking links or replying.' Reasons: urgency phrases and phishing-like wording only. Score 0.98."></td>
+  </tr>
+</table>
 
 [docs/banner-preview.html](docs/banner-preview.html) shows every state with sample
 data. Open it in Chrome; no server or extension needed.
