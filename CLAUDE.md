@@ -172,6 +172,8 @@ This is a security tool, so it must not introduce its own vulnerabilities.
   so selectors must be easy to update in one place. Prefer stable attributes over
   obfuscated class names.
 - Small commits with clear messages, e.g. `feat(model): add lookalike-domain rule`
+- Edit files with the file-editing tools, not sed/echo/heredocs; shell escapes like \n have
+  corrupted files before.
 
 ## How to run
 (Fill in as each phase is completed.)
