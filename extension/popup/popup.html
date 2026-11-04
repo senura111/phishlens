@@ -8,11 +8,7 @@
   <body>
     <h1><img src="../icons/icon32.png" alt="" width="24" height="24" />PhishLens</h1>
 
-    <p id="status" class="status status-checking">Checking the local server...</p>
-    <div id="help" hidden>
-      <p>To start it, run this from the phishlens folder:</p>
-      <code>.venv\Scripts\python -m uvicorn api.main:app --host 127.0.0.1 --port 8000</code>
-    </div>
+    <p id="status" class="status">Checking the analyser...</p>
 
     <p>
       When you open an email in Gmail, PhishLens shows a banner above it saying whether
@@ -31,8 +27,8 @@
       </li>
     </ul>
     <p class="about">
-      The analysis runs on a small server on your own computer, so email content never
-      leaves it. No email is stored, and nothing is sent anywhere else.
+      Emails are analysed inside your browser. Their content is never sent anywhere,
+      never stored, and PhishLens has no servers, analytics or tracking.
     </p>
     <a href="https://github.com/senura111/phishlens" target="_blank" rel="noopener">
       Source code on GitHub

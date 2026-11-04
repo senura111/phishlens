@@ -1,26 +1,52 @@
 # PhishLens
 
-A Chrome extension that warns Gmail users about phishing emails and explains *why* an email
-looks suspicious.
+A browser extension (Chrome and Microsoft Edge) that warns Gmail users about phishing
+emails and explains *why* an email looks suspicious.
 
-The classifier runs in a small Python API on your own machine, so email content never leaves
-your computer.
+The analysis runs inside your browser, so email content never leaves your computer. There
+is no server to install: the model is trained in Python and shipped with the extension as
+a JavaScript copy that gives the same answers.
 
 <p align="center">
   <img src="docs/screenshots/banner-red-phishing.png" width="600"
        alt="A red PhishLens banner above a Gmail email titled 'Your account will be suspended': 'This email is likely phishing.' Its reasons: a link shows paypal.com but goes to 185.22.10.4, a link goes to a raw IP address, urgency phrases, and phishing-like wording. Model score 0.99.">
 </p>
 
-> **Status:** Phases 1 to 3 (the model, the local API and the Chrome extension) are
-> done, with the known limitations listed below. See [Roadmap](#roadmap).
+> **Status:** Version 2.0.0 analyses emails inside the browser, so no Python is needed
+> to use it. Phases 1, 2, 3 and 5 are done; see [Roadmap](#roadmap).
+
+## Install
+
+No Python and no server: the trained model ships inside the extension. Works in Chrome
+and Microsoft Edge.
+
+1. Download the `phishlens-extension-….zip` file from the **Assets** of the
+   [latest release](https://github.com/senura111/phishlens/releases/latest).
+2. Unzip it (right-click → **Extract All…**). Keep the unzipped folder somewhere it can
+   stay: the browser loads the extension from that folder, so deleting or moving it
+   removes the extension.
+3. Load it in your browser:
+   - **Chrome:** open `chrome://extensions`, turn on **Developer mode**, click
+     **Load unpacked** and choose the unzipped folder (the one with `manifest.json`
+     directly inside it).
+   - **Edge:** open `edge://extensions`, turn on **Developer mode**, click
+     **Load unpacked** and choose the same folder.
+4. Open Gmail (reload the tab if it was already open) and open an email. The banner
+   appears above it. Click the PhishLens toolbar icon (pin it from the puzzle-piece
+   menu) to check that it says "Ready".
+
+**To update:** download the new zip, replace the folder's contents with it, click the
+reload arrow on PhishLens's card in `chrome://extensions` (or `edge://extensions`), and
+reload Gmail.
+
+To change the code or retrain the model, see [For developers](#for-developers).
 
 ## How it works
 
 ```
 Gmail tab ─> content script (reads the open email)
-          ─> service worker
-          ─> local API (127.0.0.1:8000)
-          ─> rules + ML model
+          ─> service worker (inside the browser)
+          ─> rules + ML model (JavaScript, exported from the Python model)
           ─> verdict + reasons
           ─> warning banner shown inside Gmail
 ```
@@ -28,8 +54,10 @@ Gmail tab ─> content script (reads the open email)
 1. When you open an email, the extension reads what Gmail shows on the page: sender name and
    address, subject, body text, links (visible text and the real destination), and
    attachment file names. Attachments themselves are never downloaded or opened.
-2. It sends that to a FastAPI server running locally on `127.0.0.1`.
-3. The server combines rule-based checks (lookalike domains, mismatched links, urgency
+2. It passes that to the extension's service worker, which analyses it inside the
+   browser. (Before Phase 5 this went to a FastAPI server on `127.0.0.1`; that API
+   still exists for development.)
+3. The analyser combines rule-based checks (lookalike domains, mismatched links, urgency
    phrases, requests for passwords or gift cards, and more) with a TF-IDF + Logistic
    Regression classifier.
 4. The extension shows a banner above the email: **red** for phishing, **amber** for
@@ -38,9 +66,13 @@ Gmail tab ─> content script (reads the open email)
 
 ## Privacy and security
 
-- The API only listens on `127.0.0.1`, never on your network.
+- Emails are analysed inside the browser. The extension makes no network requests at
+  all: it has no host permissions, and the only file it fetches is its own model.
 - No email content is logged, stored, or sent anywhere. No analytics or telemetry.
-- The extension asks for the minimum permissions it needs and ships no remote code.
+  See the [privacy policy](docs/privacy-policy.md).
+- The extension asks for no permissions beyond running on Gmail, and ships no remote
+  code.
+- The optional development API only listens on `127.0.0.1`, never on your network.
 - Email content is treated as untrusted and is never inserted into the page as HTML.
 
 ## Roadmap
@@ -51,6 +83,7 @@ Gmail tab ─> content script (reads the open email)
 | 2 | Local API: FastAPI `POST /analyze` and `GET /health` | Done (see [Local API](#local-api-phase-2)) |
 | 3 | Chrome extension (Manifest V3): Gmail banner and popup | Done (see [Chrome extension](#chrome-extension-phase-3)) |
 | 4 | Polish: link highlighting, toolbar badge, sensitivity setting, demo GIF | Optional |
+| 5 | Browser-only: the model runs in JavaScript, no Python server; ready for Microsoft Edge Add-ons | Done (see [Browser-only analyser](#browser-only-analyser-phase-5)) |
 
 ## Model results (v1)
 
@@ -343,6 +376,9 @@ After changing preprocessing, re-check for shortcuts with
 
 ## Local API (Phase 2)
 
+Since Phase 5 the extension doesn't use this API; it stays as a development tool and
+the Python reference, handy for trying the model with `curl`.
+
 A small FastAPI server wraps `analyze()` so the extension can call it. It listens on
 `127.0.0.1:8000` only, so nothing else on your network can reach it.
 
@@ -443,13 +479,15 @@ It only runs on the downloaded datasets, never on API requests, so it was left a
 ## Chrome extension (Phase 3)
 
 A Manifest V3 extension in plain JavaScript, with no framework and no build step. It
-has three parts, which talk to each other with `chrome.runtime.sendMessage`:
+has three parts, which talk to each other with `chrome.runtime.sendMessage`. (This
+section describes the extension as it is after Phase 5: the service worker analyses
+emails itself instead of calling the local API.)
 
 | Part | Runs | Does |
 | --- | --- | --- |
 | Content scripts (`extension/content/`) | Inside the Gmail tab | Find opened emails, read them, show the banner |
-| Service worker (`extension/background/`) | In the background | The only part that calls the local API |
-| Popup (`extension/popup/`) | When you click the toolbar icon | Shows whether the server is running, and what the colours mean |
+| Service worker (`extension/background/`) | In the background | Loads the model and runs the analyser (`extension/analyzer/`) |
+| Popup (`extension/popup/`) | When you click the toolbar icon | Shows whether the analyser is ready, and what the colours mean |
 
 ### The banner
 
@@ -459,20 +497,12 @@ has three parts, which talk to each other with `chrome.runtime.sendMessage`:
 | **Amber**: "This email shows signs of phishing. Check carefully before clicking links or replying." | Verdict `suspicious`. Most phishing lands here, because red needs rule-based evidence (see [Verdict rules](#verdict-rules)), so the wording is a clear warning |
 | **Green**: "No signs of phishing found." | Verdict `safe`. Any reasons are collapsed grey "minor notes", not warnings: a lone rule hit on a legitimate newsletter shouldn't look alarming |
 | **Grey**: partly analysed | Verdict `safe`, but part of the email had to be left out (see below), so it is never shown as plain green |
-| **Grey**: server not running / couldn't read this email / analysis failed | No verdict: nothing listening on port 8000, a 422 (e.g. no sender address found), or a 500. Each has its own message and a Try again button |
+| **Grey**: couldn't read this email / analysis failed | No verdict: no sender address was found on the page, or the analyser failed (e.g. its model didn't load). Each has its own message and a Try again button |
 
-<table>
-  <tr>
-    <th>Green: a Reddit digest</th>
-    <th>Grey: the local server isn't running</th>
-  </tr>
-  <tr>
-    <td><img src="docs/screenshots/banner-green-safe.png"
-             alt="A green PhishLens banner above a Reddit email: 'No signs of phishing found.'"></td>
-    <td><img src="docs/screenshots/banner-grey-offline.png"
-             alt="A grey PhishLens banner: 'PhishLens can't check this email: its local server isn't running. Start the server (the PhishLens popup shows how), then click Try again.' With Try again and Dismiss buttons."></td>
-  </tr>
-</table>
+**Green: a Reddit digest**
+
+<img src="docs/screenshots/banner-green-safe.png" width="600"
+     alt="A green PhishLens banner above a Reddit email: 'No signs of phishing found.'">
 
 Red and amber list their reasons, with severity labels, open by default. Values a
 reason quotes (domains, phrases) are highlighted, so for a mismatched link you see both
@@ -510,7 +540,7 @@ data. Open it in Chrome; no server or extension needed.
   scan, 300 ms after the first.
 - **Each message is analysed once.** Results are kept by message id in the tab's
   memory (never saved). When Gmail rebuilds a message, the banner is put back from
-  memory without asking the API again.
+  memory without analysing it again.
 - **Every expanded message in a thread gets its own banner**, because phishing can be
   a reply inside a real conversation from a hacked account.
 - **What is read:** sender name and address, subject, body text (`innerText`, which
@@ -518,10 +548,11 @@ data. Open it in Chrome; no server or extension needed.
   links with their real `href` (not Gmail's `data-saferedirecturl` redirect), and
   attachment file names. Attachments are never downloaded or opened.
 
-### Fitting the API's limits
+### Fitting the analysis limits
 
-`extension/content/payload.js` shortens each email to the API's caps rather than
-letting the API reject it. Anything left out is a blind spot an attacker could hide
+`extension/content/payload.js` shortens each email to the caps of the API contract
+(the same for the in-browser analyser and the Python API), which keep every analysis
+small and fast. Anything left out is a blind spot an attacker could hide
 in, so the banner then says the email was only partly analysed.
 
 - **Invisible characters** (Unicode category Cf: zero-width spaces, soft hyphens,
@@ -540,8 +571,8 @@ in, so the banner then says the email was only partly analysed.
   shortened first but keeps its first 20,000 characters, then links are dropped from
   the end.
 
-`extension/tests/payload.test.js` has 23 tests for this, run with Node's built-in
-test runner.
+`tests/js/payload.test.js` has 23 tests for this, run with Node's built-in test
+runner.
 
 ### Security design
 
@@ -549,14 +580,14 @@ test runner.
   email text (which reasons can quote) always shows as text. The preview page includes
   reasons quoting `<img src=x onerror=alert(1)>` and a `<script>` subject, and checks
   that no element is created from them.
-- **Minimal permissions.** The manifest asks for no `permissions` at all, only
-  `host_permissions` for Gmail and `http://127.0.0.1:8000/*`. No `tabs`, no `storage`,
-  no `<all_urls>`.
-- **Only the service worker calls the API.** Its host permission lets it read the
-  API's answers without CORS. Content scripts can't: their requests count as coming
-  from `mail.google.com`. The API sends no CORS headers, so websites can't read it.
-- **The service worker checks every answer** against the API contract and passes on
-  only the contract's fields.
+- **Minimal permissions.** The manifest asks for no `permissions` and no
+  `host_permissions` at all: the content scripts run on `https://mail.google.com/*`
+  only, and the service worker needs no network access. No `tabs`, no `storage`, no
+  `<all_urls>`.
+- **No network requests.** The service worker's only `fetch` is the model file inside
+  the extension (`tests/js/service-worker.test.mjs` checks this).
+- **The service worker checks every request's shape** (the API contract's fields and
+  types) before analysing it.
 - **Nothing is logged but metadata.** The console shows message ids, verdicts, scores
   and reason ids, never reason messages or email content.
 
@@ -583,21 +614,101 @@ test runner.
   last checked against live Gmail on 2026-11-04.
 - **The extension's own text is in English only.**
 
+## Browser-only analyser (Phase 5)
+
+The extension analyses emails inside the browser, with no Python server, so it can be
+installed from a store by people who don't have Python. Python is still where the
+model is trained and stays the reference: the JavaScript copy must give the same
+answers, and tests check that it does.
+
+```
+model/src/train.py ─> model/artifacts/phishlens.joblib       (Python, as before)
+model/src/export_browser.py ─> extension/analyzer/generated/  (model.json, Public Suffix List, Unicode tables)
+extension/analyzer/*.js ─> the same cleaning, rules, scoring and verdict, in JavaScript
+tests/js/ ─> parity tests against answers written by Python
+```
+
+| File | JavaScript twin of |
+| --- | --- |
+| `extension/analyzer/preprocess.js` | `preprocess.prepare_email()` and the cleaning it uses |
+| `extension/analyzer/features.js` | the eight rules in `features.py`, `find_reasons`, `rule_vector` |
+| `extension/analyzer/predict.js` | TF-IDF, the Logistic Regression score, `decide_verdict` (with the floor rules), the `phishing_language` reason, `analyze()` |
+| `extension/analyzer/urls.js` | `urllib.parse.urlsplit`, `ipaddress`, `publicsuffixlist`, `unquote` |
+| `extension/analyzer/python-compat.js` | the parts of Python's `re` and `str` the others rely on |
+
+**The model as JSON.** `model.json` (2.6 MB) holds the 51,057 words and word pairs of
+the TF-IDF vocabulary with their IDF values, one Logistic Regression weight per word
+and per rule, and the intercept. Numbers are written so `JSON.parse` reads back exactly
+the same floats Python had. The extension loads it once each time its service worker
+starts.
+
+**Why not use the browser's own tools?** Small differences change answers:
+
+- JavaScript's `\w`, `\b` and `\s` only know ASCII, Python's know every alphabet, so a
+  word like "café" splits differently. `pyRegex()` rewrites each Python pattern into
+  an equivalent JavaScript one, and `tests/js/unicode.test.mjs` checks the character
+  classes against Python for every character Unicode has.
+- With IGNORECASE, Python matches "i" to the Turkish dotted İ and dotless ı;
+  JavaScript doesn't. Phishing written as "unusual actıvity" must be caught by both.
+- The browser's `new URL()` follows a different standard from Python's `urlsplit`
+  (it turns `http://3232235777/` into `192.168.1.1` and international names into
+  `xn--` form), so `urls.js` copies Python's parsing step by step.
+- Python counts string lengths in characters, JavaScript in UTF-16 units, which
+  matters for the 60-character quotes in reason messages when emoji are involved.
+
+**Parity tests.** `tests/js/make_golden.py` runs our own example emails
+(`tests/js/golden_emails.py`, never text from the datasets) through Python and saves
+the cleaned email, rule reasons, unrounded score, verdict and final result.
+`tests/js/parity.test.mjs` runs the same emails through JavaScript and requires the
+same cleaned text, the same reasons, the same verdict, and a score within 1e-6.
+
+| Check | Emails | Result |
+| --- | --- | --- |
+| Golden examples (committed): every rule, every verdict, invisible characters, look-alike letters, Sinhala, emoji, odd line breaks and URLs | 28 | All identical; scores within 1e-6 |
+| Every email in the local datasets (not committed) | 7,609 | All identical; scores within 1e-6 |
+
+The dataset run found one real bug in the port, invisible to the hand-written
+examples: a regex translation that matched `support.my` inside `support.my-free.website`.
+A golden example now covers it. The port also exposed two bugs in the Python
+reference, both fixed with tests:
+
+- A link such as `http://[oops/x.exe` made Python's `urlsplit` raise inside the
+  risky-attachment rule, so **one malformed link made the whole analysis fail**: a
+  phisher could switch PhishLens off for their email.
+- The lookalike-domain rule looped over a Python `set`, whose order changes between
+  runs, so its message could differ from run to run.
+
+**Limits of the parity.** Unicode normalisation (NFKC) and lowercasing come from the
+browser, and characters added to Unicode after Python's version (16.0) may be treated
+differently. The tests skip those characters, and no real email in the datasets hit
+one.
+
 ## Project layout
 
 ```
 phishlens/
 ├── model/       # Python: preprocessing, rules, training, predict.py
 ├── api/         # FastAPI wrapper around the model
-├── extension/   # Chrome extension (vanilla JS, no build step)
-└── docs/        # banner preview, icon artwork, screenshots
+├── extension/   # browser extension (vanilla JS, no build step); only shipped files
+│   └── analyzer/  # the JavaScript copy of the model (Phase 5)
+├── tests/js/    # JS tests and golden fixtures (Node's test runner)
+└── docs/        # banner preview, icon artwork, screenshots, privacy policy, store listing
 ```
 
-## How to run
+## For developers
+
+You only need this to change the code, run the tests or retrain the model. To just use
+PhishLens, see [Install](#install).
+
+Clone the repository first:
+
+```bash
+git clone https://github.com/senura111/phishlens.git
+```
 
 ### Model (Phase 1)
 
-Requires Python 3.11+. From the repo root on Windows:
+Retraining needs Python 3.11+. From the repo root on Windows:
 
 ```bash
 py -m venv .venv
@@ -662,25 +773,42 @@ curl -X POST http://127.0.0.1:8000/analyze -H "Content-Type: application/json" -
 
 The tests run with the rest: `.venv\Scripts\python -m pytest`.
 
-### Chrome extension (Phase 3)
+### Browser extension from source (Phases 3 and 5)
 
-1. Start the local API (see above) and leave it running.
-2. In Chrome, open `chrome://extensions`, turn on **Developer mode**, click **Load
-   unpacked** and choose the `extension` folder.
-3. Open Gmail (reload the tab if it was already open) and open an email. The banner
-   appears above it. Click the PhishLens toolbar icon to see whether the server is
-   running.
+No Python needed to run it: the trained model ships inside `extension/`. Load it like
+the release zip in [Install](#install), but choose the repository's `extension` folder.
 
 After changing the extension's code, click the reload arrow on its card in
 `chrome://extensions`, then reload the Gmail tab: the old content script stays in an
 open tab until it's reloaded.
 
-The extension's tests need [Node.js](https://nodejs.org/) 20 or later, with no
-packages to install:
+The JavaScript tests need [Node.js](https://nodejs.org/) 22 or later, with no
+packages to install. They live outside `extension/`, so the folder holds only files
+that ship:
 
 ```bash
-node --test extension/tests/payload.test.js
+node --test tests/js/
 ```
+
+After retraining the model (or changing the Python rules or cleaning), export it and
+regenerate the golden fixtures, then run both test suites:
+
+```bash
+.venv\Scripts\python -m model.src.export_browser
+.venv\Scripts\python -m tests.js.make_golden
+.venv\Scripts\python -m pytest
+node --test tests/js/
+```
+
+With the datasets downloaded, `.venv\Scripts\python -m tests.js.make_golden --corpus`
+also writes Python's answers for every dataset email to `model/data/` (gitignored);
+the next `node --test tests/js/` then checks JavaScript against all of them.
+
+To package a release (the zip attached to the GitHub release, and the one a store
+takes), run both test suites, then zip the *contents* of `extension/` so `manifest.json`
+is at the top level of the zip, and name it `phishlens-extension-v<version>.zip` with
+the version from `manifest.json`. The store listing text is in
+[docs/store-listing.md](docs/store-listing.md).
 
 ## License
 

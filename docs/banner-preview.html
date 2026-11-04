@@ -138,7 +138,7 @@
           message: `Uses pressure or threats to rush you: '${SCRIPT_SUBJECT}'`,
         },
         // As for the real ECU newsletter (README, Known limitations). The domains are
-        // what the API reports for it.
+        // what the analyser reports for it.
         trackingLink: {
           id: "link_text_mismatch",
           severity: "high",
@@ -228,9 +228,8 @@
             result: { verdict: "safe", score: 0.2, reasons: [] },
           },
         },
-        { title: "Server not running", outcome: { state: "offline", truncated: false } },
-        { title: "Couldn't read this email (422)", outcome: { state: "unreadable", truncated: false } },
-        { title: "Analysis failed (500)", outcome: { state: "failed", truncated: false } },
+        { title: "Couldn't read this email (no sender address)", outcome: { state: "unreadable", truncated: false } },
+        { title: "Analysis failed", outcome: { state: "failed", truncated: false } },
       ];
 
       const log = document.getElementById("log");

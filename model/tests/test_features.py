@@ -265,6 +265,14 @@ def test_lookalike_domain_checks_link_hosts_and_link_text():
     assert reasons[0]["message"].endswith("(and 1 more)")
 
 
+def test_lookalike_domain_names_the_href_first_when_text_also_imitates():
+    # Both the href host and the link text imitate a brand. The href is checked
+    # first, every time (a set used to make this depend on the run).
+    email = make_email(links=[("paypa1.com", "http://g00gle.com/x")])
+    message = ft.lookalike_domain(email)[0]["message"]
+    assert message == "A link goes to 'g00gle.com', which imitates google.com"
+
+
 def test_lookalike_domain_does_not_fire_for_real_brand_mail():
     email = make_email(
         sender_email="service@paypal.com",
@@ -610,6 +618,14 @@ def test_risky_attachment_reports_the_most_dangerous_attachment():
 )
 def test_risky_attachment_ignores_safe_or_missing_attachments(attachments):
     assert ft.risky_attachment(make_email(attachments=attachments)) == []
+
+
+@pytest.mark.parametrize("href", ["http://[oops/Scan.exe", "https://a]b.com/x.zip"])
+def test_rules_survive_hrefs_python_cannot_parse(href):
+    # urlsplit raises ValueError for these. One such link must not make the whole
+    # analysis fail: that would let a phisher switch the banner off.
+    email = make_email(links=[("Download", href)])
+    assert isinstance(ft.find_reasons(email), list)
 
 
 def test_rules_work_without_the_attachments_field():

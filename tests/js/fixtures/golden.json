@@ -1,0 +1,1986 @@
+{
+ "generated_by": "python -m tests.js.make_golden",
+ "python_version": "3.14.7",
+ "model_sha256": "f2d66b70850a98220f075c864220d30e398e7f0370d9908436b6dccc2002fef1",
+ "emails": [
+  {
+   "name": "example: phishing (lookalike + mismatched link)",
+   "input": {
+    "sender_name": "PayPal Service",
+    "sender_email": "service@paypal-account-review.com",
+    "subject": "Action required: your account has been limited",
+    "body_text": "Dear Customer,\n\nWe noticed unusual sign-in activity on your PayPal account. As a precaution, we have limited what you can do with your account until you confirm your identity.\n\nPlease confirm your account details within 24 hours to avoid permanent suspension.\n\nConfirm now: https://www.paypal.com/signin\n\nThank you for helping us keep your account safe.\nPayPal Security Team",
+    "links": [
+     {
+      "text": "https://www.paypal.com/signin",
+      "href": "http://paypal-account-review.com/secure/login.php?id=88213"
+     }
+    ]
+   },
+   "cleaned": {
+    "sender_name": "PayPal Service",
+    "sender_email": "service@paypal-account-review.com",
+    "subject": "Action required: your account has been limited",
+    "body_text": "Dear Customer,\nWe noticed unusual sign-in activity on your PayPal account. As a precaution, we have limited what you can do with your account until you confirm your identity.\nPlease confirm your account details within 24 hours to avoid permanent suspension.\nConfirm now:\nThank you for helping us keep your account safe.\nPayPal Security Team",
+    "links": [
+     {
+      "text": "https://www.paypal.com/signin",
+      "href": "http://paypal-account-review.com/secure/login.php?id=88213"
+     },
+     {
+      "text": "https://www.paypal.com/signin",
+      "href": "https://www.paypal.com/signin"
+     }
+    ],
+    "attachments": []
+   },
+   "rule_reasons": [
+    {
+     "id": "link_text_mismatch",
+     "severity": "high",
+     "message": "A link shows 'www.paypal.com' but goes to 'paypal-account-review.com'"
+    },
+    {
+     "id": "lookalike_domain",
+     "severity": "high",
+     "message": "Sender domain 'paypal-account-review.com' imitates paypal.com (and 1 more)"
+    },
+    {
+     "id": "sender_name_mismatch",
+     "severity": "medium",
+     "message": "The sender name says 'PayPal Service' but the address is from 'paypal-account-review.com', not paypal.com"
+    },
+    {
+     "id": "urgency",
+     "severity": "medium",
+     "message": "Uses pressure or threats to rush you: 'action required', 'account has been limited'"
+    }
+   ],
+   "score": 0.9999294480682637,
+   "verdict": "phishing",
+   "result": {
+    "verdict": "phishing",
+    "score": 1.0,
+    "reasons": [
+     {
+      "id": "link_text_mismatch",
+      "severity": "high",
+      "message": "A link shows 'www.paypal.com' but goes to 'paypal-account-review.com'"
+     },
+     {
+      "id": "lookalike_domain",
+      "severity": "high",
+      "message": "Sender domain 'paypal-account-review.com' imitates paypal.com (and 1 more)"
+     },
+     {
+      "id": "sender_name_mismatch",
+      "severity": "medium",
+      "message": "The sender name says 'PayPal Service' but the address is from 'paypal-account-review.com', not paypal.com"
+     },
+     {
+      "id": "urgency",
+      "severity": "medium",
+      "message": "Uses pressure or threats to rush you: 'action required', 'account has been limited'"
+     },
+     {
+      "id": "phishing_language",
+      "severity": "low",
+      "message": "The wording is similar to phishing emails (for example 'your', 'account', 'confirm'). On its own this is a weak sign."
+     }
+    ]
+   }
+  },
+  {
+   "name": "example: personal email between friends",
+   "input": {
+    "sender_name": "Maya Perera",
+    "sender_email": "maya.perera@gmail.com",
+    "subject": "Saturday hike?",
+    "body_text": "Hey!\n\nAre you still up for the Ella hike on Saturday? Nimal and Priya are in too. I was thinking we take the early train from Kandy and grab breakfast at that place near the station.\n\nLet me know by Thursday so I can book the tickets. I'll bring snacks, you bring the good camera :)\n\nMaya",
+    "links": []
+   },
+   "cleaned": {
+    "sender_name": "Maya Perera",
+    "sender_email": "maya.perera@gmail.com",
+    "subject": "hike?",
+    "body_text": "Hey!\nAre you still up for the Ella hike on ? Nimal and Priya are in too. I was thinking we take the early train from Kandy and grab breakfast at that place near the station.\nLet me know by so I can book the tickets. I'll bring snacks, you bring the good camera :)\nMaya",
+    "links": [],
+    "attachments": []
+   },
+   "rule_reasons": [],
+   "score": 0.06573538652741534,
+   "verdict": "safe",
+   "result": {
+    "verdict": "safe",
+    "score": 0.07,
+    "reasons": []
+   }
+  },
+  {
+   "name": "example: marketing newsletter",
+   "input": {
+    "sender_name": "Northwind Outfitters",
+    "sender_email": "hello@email.northwindoutfitters.com",
+    "subject": "Our autumn collection is here: 20% off this weekend",
+    "body_text": "View in browser\n\nHi Alex,\n\nCooler days are coming, and our new autumn collection is ready for them. Waxed jackets, merino layers and the trail boots you asked us to bring back.\n\nThis weekend only, get 20% off everything with code AUTUMN20. Free shipping on orders over $50.\n\nShop the collection\n\nOffer ends Sunday at midnight.\n\nYou're receiving this email because you signed up at northwindoutfitters.com.\nUnsubscribe | Manage preferences\nNorthwind Outfitters, 120 Harbor Street, Portland, OR 97201\n\u00a9 2026 Northwind Outfitters. All rights reserved.",
+    "links": [
+     {
+      "text": "View in browser",
+      "href": "https://email.northwindoutfitters.com/view/8c1f2a"
+     },
+     {
+      "text": "Shop the collection",
+      "href": "https://u4821.ct.sendgrid.net/ls/click?upn=ab12cd34"
+     },
+     {
+      "text": "northwindoutfitters.com",
+      "href": "https://u4821.ct.sendgrid.net/ls/click?upn=ef56gh78"
+     },
+     {
+      "text": "Unsubscribe",
+      "href": "https://email.northwindoutfitters.com/unsubscribe?u=4821"
+     },
+     {
+      "text": "Manage preferences",
+      "href": "https://email.northwindoutfitters.com/preferences?u=4821"
+     }
+    ]
+   },
+   "cleaned": {
+    "sender_name": "Northwind Outfitters",
+    "sender_email": "hello@email.northwindoutfitters.com",
+    "subject": "Our autumn collection is here: 20% off this weekend",
+    "body_text": "View in browser\nHi Alex,\nCooler days are coming, and our new autumn collection is ready for them. Waxed jackets, merino layers and the trail boots you asked us to bring back.\nThis weekend only, get 20% off everything with code AUTUMN20. Free shipping on orders over $50.\nShop the collection\nOffer ends at midnight.\nYou're receiving this email because you signed up at northwindoutfitters.com.\nUnsubscribe | Manage preferences\nNorthwind Outfitters, 120 Harbor Street, Portland, OR 97201\n.",
+    "links": [
+     {
+      "text": "View in browser",
+      "href": "https://email.northwindoutfitters.com/view/8c1f2a"
+     },
+     {
+      "text": "Shop the collection",
+      "href": "https://u4821.ct.sendgrid.net/ls/click?upn=ab12cd34"
+     },
+     {
+      "text": "northwindoutfitters.com",
+      "href": "https://u4821.ct.sendgrid.net/ls/click?upn=ef56gh78"
+     },
+     {
+      "text": "Unsubscribe",
+      "href": "https://email.northwindoutfitters.com/unsubscribe?u=4821"
+     },
+     {
+      "text": "Manage preferences",
+      "href": "https://email.northwindoutfitters.com/preferences?u=4821"
+     }
+    ],
+    "attachments": []
+   },
+   "rule_reasons": [],
+   "score": 0.2523987149691074,
+   "verdict": "safe",
+   "result": {
+    "verdict": "safe",
+    "score": 0.25,
+    "reasons": []
+   }
+  },
+  {
+   "name": "example: password reset",
+   "input": {
+    "sender_name": "Dropbox",
+    "sender_email": "no-reply@dropbox.com",
+    "subject": "Reset your Dropbox password",
+    "body_text": "Hi Alex,\n\nSomeone (hopefully you) asked us to reset the password for your Dropbox account. Click the button below to choose a new one.\n\nReset password\n\nThis link expires in 24 hours. If you didn't ask to reset your password, you can ignore this email and your password won't change.\n\nThanks,\nThe Dropbox team",
+    "links": [
+     {
+      "text": "Reset password",
+      "href": "https://www.dropbox.com/password_reset?token=Zk3pQ9"
+     },
+     {
+      "text": "Help Center",
+      "href": "https://help.dropbox.com/"
+     }
+    ]
+   },
+   "cleaned": {
+    "sender_name": "Dropbox",
+    "sender_email": "no-reply@dropbox.com",
+    "subject": "Reset your Dropbox password",
+    "body_text": "Hi Alex,\nSomeone (hopefully you) asked us to reset the password for your Dropbox account. Click the button below to choose a new one.\nReset password\nThis link expires in 24 hours. If you didn't ask to reset your password, you can ignore this email and your password won't change.\nThanks,\nThe Dropbox team",
+    "links": [
+     {
+      "text": "Reset password",
+      "href": "https://www.dropbox.com/password_reset?token=Zk3pQ9"
+     },
+     {
+      "text": "Help Center",
+      "href": "https://help.dropbox.com/"
+     }
+    ],
+    "attachments": []
+   },
+   "rule_reasons": [
+    {
+     "id": "urgency",
+     "severity": "medium",
+     "message": "Uses pressure or threats to rush you: 'expires in 24'"
+    }
+   ],
+   "score": 0.9809050529092976,
+   "verdict": "suspicious",
+   "result": {
+    "verdict": "suspicious",
+    "score": 0.98,
+    "reasons": [
+     {
+      "id": "urgency",
+      "severity": "medium",
+      "message": "Uses pressure or threats to rush you: 'expires in 24'"
+     },
+     {
+      "id": "phishing_language",
+      "severity": "low",
+      "message": "The wording is similar to phishing emails (for example 'your', 'password', 'account'). On its own this is a weak sign."
+     }
+    ]
+   }
+  },
+  {
+   "name": "example: receipt with PDF invoice",
+   "input": {
+    "sender_name": "Kandy Books",
+    "sender_email": "orders@kandybooks.lk",
+    "subject": "Your receipt for order KB-20931",
+    "body_text": "Thanks for your order, Alex!\n\nOrder KB-20931\nThe Overstory, Richard Powers  x1  LKR 4,200.00\nSapiens, Yuval Noah Harari  x1  LKR 3,250.00\nTotal paid: LKR 7,450.00\nPayment method: Visa ending in 4242\n\nYour invoice is attached as a PDF. Your books will ship within 2 business days, and we'll email you a tracking link.\n\nView your order\n\nKandy Books, 14 Dalada Veediya, Kandy",
+    "links": [
+     {
+      "text": "View your order",
+      "href": "https://kandybooks.lk/account/orders/KB-20931"
+     }
+    ],
+    "attachments": [
+     "Invoice_KB-20931.pdf"
+    ]
+   },
+   "cleaned": {
+    "sender_name": "Kandy Books",
+    "sender_email": "orders@kandybooks.lk",
+    "subject": "Your receipt for order KB-20931",
+    "body_text": "Thanks for your order, Alex!\nOrder KB-20931\nThe Overstory, Richard Powers x1 LKR 4,200.00\nSapiens, Yuval Noah Harari x1 LKR 3,250.00\nTotal paid: LKR 7,450.00\nPayment method: Visa ending in 4242\nYour invoice is attached as a PDF. Your books will ship within 2 business days, and we'll email you a tracking link.\nView your order\nKandy Books, 14 Dalada Veediya, Kandy",
+    "links": [
+     {
+      "text": "View your order",
+      "href": "https://kandybooks.lk/account/orders/KB-20931"
+     }
+    ],
+    "attachments": [
+     "Invoice_KB-20931.pdf"
+    ]
+   },
+   "rule_reasons": [],
+   "score": 0.8448892759327489,
+   "verdict": "suspicious",
+   "result": {
+    "verdict": "suspicious",
+    "score": 0.84,
+    "reasons": [
+     {
+      "id": "phishing_language",
+      "severity": "low",
+      "message": "The wording is similar to phishing emails (for example 'your', 'order', 'payment'). On its own this is a weak sign."
+     }
+    ]
+   }
+  },
+  {
+   "name": "ip link and url shortener",
+   "input": {
+    "sender_name": "IT Helpdesk",
+    "sender_email": "helpdesk@campus-it.example",
+    "subject": "Mailbox quota",
+    "body_text": "Your mailbox is almost full. Upgrade your quota here.",
+    "links": [
+     {
+      "text": "Upgrade quota",
+      "href": "http://185.22.10.4/upgrade"
+     },
+     {
+      "text": "Details",
+      "href": "https://bit.ly/3xYz12"
+     },
+     {
+      "text": "More details",
+      "href": "https://www.tinyurl.com/abc"
+     },
+     {
+      "text": "Numeric host",
+      "href": "http://3232235777/login"
+     }
+    ]
+   },
+   "cleaned": {
+    "sender_name": "IT Helpdesk",
+    "sender_email": "helpdesk@campus-it.example",
+    "subject": "Mailbox quota",
+    "body_text": "Your mailbox is almost full. Upgrade your quota here.",
+    "links": [
+     {
+      "text": "Upgrade quota",
+      "href": "http://185.22.10.4/upgrade"
+     },
+     {
+      "text": "Details",
+      "href": "https://bit.ly/3xYz12"
+     },
+     {
+      "text": "More details",
+      "href": "https://www.tinyurl.com/abc"
+     },
+     {
+      "text": "Numeric host",
+      "href": "http://3232235777/login"
+     }
+    ],
+    "attachments": []
+   },
+   "rule_reasons": [
+    {
+     "id": "ip_link",
+     "severity": "high",
+     "message": "A link goes to a raw IP address (185.22.10.4) (and 1 more)"
+    },
+    {
+     "id": "url_shortener",
+     "severity": "medium",
+     "message": "A link uses the URL shortener bit.ly, which hides where it goes (and 1 more)"
+    }
+   ],
+   "score": 0.927580145042759,
+   "verdict": "phishing",
+   "result": {
+    "verdict": "phishing",
+    "score": 0.93,
+    "reasons": [
+     {
+      "id": "ip_link",
+      "severity": "high",
+      "message": "A link goes to a raw IP address (185.22.10.4) (and 1 more)"
+     },
+     {
+      "id": "url_shortener",
+      "severity": "medium",
+      "message": "A link uses the URL shortener bit.ly, which hides where it goes (and 1 more)"
+     },
+     {
+      "id": "phishing_language",
+      "severity": "low",
+      "message": "The wording is similar to phishing emails (for example 'your', 'mailbox', 'quota'). On its own this is a weak sign."
+     }
+    ]
+   }
+  },
+  {
+   "name": "ipv6, userinfo and unparseable links",
+   "input": {
+    "sender_name": "",
+    "sender_email": "someone@example.org",
+    "subject": "Shared files",
+    "body_text": "Three files were shared with you.",
+    "links": [
+     {
+      "text": "File one",
+      "href": "http://[2001:db8::1]:8080/file"
+     },
+     {
+      "text": "File two",
+      "href": "http://paypal.com@203.0.113.9/login"
+     },
+     {
+      "text": "File three",
+      "href": "http://[oops/Scan.exe"
+     },
+     {
+      "text": "File four",
+      "href": "https://a]b.example/x.zip"
+     },
+     {
+      "text": "Zone",
+      "href": "http://[fe80::1%25eth0]/"
+     },
+     {
+      "text": "Mapped",
+      "href": "http://[::ffff:192.0.2.1]/"
+     },
+     {
+      "text": "Bad IPv6",
+      "href": "http://[1:2:3]/"
+     }
+    ]
+   },
+   "cleaned": {
+    "sender_name": "",
+    "sender_email": "someone@example.org",
+    "subject": "Shared files",
+    "body_text": "Three files were shared with you.",
+    "links": [
+     {
+      "text": "File one",
+      "href": "http://[2001:db8::1]:8080/file"
+     },
+     {
+      "text": "File two",
+      "href": "http://paypal.com@203.0.113.9/login"
+     },
+     {
+      "text": "File three",
+      "href": "http://[oops/Scan.exe"
+     },
+     {
+      "text": "File four",
+      "href": "https://a]b.example/x.zip"
+     },
+     {
+      "text": "Zone",
+      "href": "http://[fe80::1%25eth0]/"
+     },
+     {
+      "text": "Mapped",
+      "href": "http://[::ffff:192.0.2.1]/"
+     },
+     {
+      "text": "Bad IPv6",
+      "href": "http://[1:2:3]/"
+     }
+    ],
+    "attachments": []
+   },
+   "rule_reasons": [
+    {
+     "id": "ip_link",
+     "severity": "high",
+     "message": "A link goes to a raw IP address (2001:db8::1) (and 3 more)"
+    }
+   ],
+   "score": 0.4217735060368337,
+   "verdict": "suspicious",
+   "result": {
+    "verdict": "suspicious",
+    "score": 0.42,
+    "reasons": [
+     {
+      "id": "ip_link",
+      "severity": "high",
+      "message": "A link goes to a raw IP address (2001:db8::1) (and 3 more)"
+     },
+     {
+      "id": "phishing_language",
+      "severity": "low",
+      "message": "The wording is similar to phishing emails (for example 'shared', 'with you', 'files were'). On its own this is a weak sign."
+     }
+    ]
+   }
+  },
+  {
+   "name": "lookalike sender and links",
+   "input": {
+    "sender_name": "Microsoft 365",
+    "sender_email": "no-reply@rnicrosoft-alerts.com",
+    "subject": "Password expiry notice",
+    "body_text": "Your password expires today. Keep your current password below.",
+    "links": [
+     {
+      "text": "Keep password",
+      "href": "https://login.micros0ft-support.com/keep"
+     },
+     {
+      "text": "paypa1.com",
+      "href": "http://g00gle.com/x"
+     },
+     {
+      "text": "www.paypal.com",
+      "href": "https://www.paypal.com/"
+     },
+     {
+      "text": "Wells",
+      "href": "https://we11sfargo-secure.co.uk/"
+     }
+    ]
+   },
+   "cleaned": {
+    "sender_name": "Microsoft 365",
+    "sender_email": "no-reply@rnicrosoft-alerts.com",
+    "subject": "Password expiry notice",
+    "body_text": "Your password expires today. Keep your current password below.",
+    "links": [
+     {
+      "text": "Keep password",
+      "href": "https://login.micros0ft-support.com/keep"
+     },
+     {
+      "text": "paypa1.com",
+      "href": "http://g00gle.com/x"
+     },
+     {
+      "text": "www.paypal.com",
+      "href": "https://www.paypal.com/"
+     },
+     {
+      "text": "Wells",
+      "href": "https://we11sfargo-secure.co.uk/"
+     }
+    ],
+    "attachments": []
+   },
+   "rule_reasons": [
+    {
+     "id": "link_text_mismatch",
+     "severity": "high",
+     "message": "A link shows 'paypa1.com' but goes to 'g00gle.com'"
+    },
+    {
+     "id": "lookalike_domain",
+     "severity": "high",
+     "message": "Sender domain 'rnicrosoft-alerts.com' imitates microsoft.com (and 3 more)"
+    },
+    {
+     "id": "sender_name_mismatch",
+     "severity": "medium",
+     "message": "The sender name says 'Microsoft 365' but the address is from 'rnicrosoft-alerts.com', not microsoft.com"
+    },
+    {
+     "id": "urgency",
+     "severity": "medium",
+     "message": "Uses pressure or threats to rush you: 'password expiry', 'password expires'"
+    }
+   ],
+   "score": 0.9992516357121602,
+   "verdict": "phishing",
+   "result": {
+    "verdict": "phishing",
+    "score": 1.0,
+    "reasons": [
+     {
+      "id": "link_text_mismatch",
+      "severity": "high",
+      "message": "A link shows 'paypa1.com' but goes to 'g00gle.com'"
+     },
+     {
+      "id": "lookalike_domain",
+      "severity": "high",
+      "message": "Sender domain 'rnicrosoft-alerts.com' imitates microsoft.com (and 3 more)"
+     },
+     {
+      "id": "sender_name_mismatch",
+      "severity": "medium",
+      "message": "The sender name says 'Microsoft 365' but the address is from 'rnicrosoft-alerts.com', not microsoft.com"
+     },
+     {
+      "id": "urgency",
+      "severity": "medium",
+      "message": "Uses pressure or threats to rush you: 'password expiry', 'password expires'"
+     },
+     {
+      "id": "phishing_language",
+      "severity": "low",
+      "message": "The wording is similar to phishing emails (for example 'your', 'password', 'below'). On its own this is a weak sign."
+     }
+    ]
+   }
+  },
+  {
+   "name": "link text mismatch, redirects and trackers",
+   "input": {
+    "sender_name": "Bank Alerts",
+    "sender_email": "alerts@bank.example",
+    "subject": "Statement ready",
+    "body_text": "Your statement is ready.",
+    "links": [
+     {
+      "text": "https://www.paypal.com/statement",
+      "href": "https://paypal.statement-view.net/s"
+     },
+     {
+      "text": "paypal.com",
+      "href": "https://www.google.com/url?q=https%3A%2F%2Fwww.paypal.com%2Flogin"
+     },
+     {
+      "text": "bank.example",
+      "href": "https://u12.ct.sendgrid.net/ls/click?upn=xyz"
+     },
+     {
+      "text": "Visit www.ecu.edu.lk now",
+      "href": "https://evil.edu.lk/"
+     },
+     {
+      "text": "CO.UK shop",
+      "href": "https://shop.example.co.uk/"
+     }
+    ]
+   },
+   "cleaned": {
+    "sender_name": "Bank Alerts",
+    "sender_email": "alerts@bank.example",
+    "subject": "Statement ready",
+    "body_text": "Your statement is ready.",
+    "links": [
+     {
+      "text": "https://www.paypal.com/statement",
+      "href": "https://paypal.statement-view.net/s"
+     },
+     {
+      "text": "paypal.com",
+      "href": "https://www.google.com/url?q=https%3A%2F%2Fwww.paypal.com%2Flogin"
+     },
+     {
+      "text": "bank.example",
+      "href": "https://u12.ct.sendgrid.net/ls/click?upn=xyz"
+     },
+     {
+      "text": "Visit www.ecu.edu.lk now",
+      "href": "https://evil.edu.lk/"
+     },
+     {
+      "text": "CO.UK shop",
+      "href": "https://shop.example.co.uk/"
+     }
+    ],
+    "attachments": []
+   },
+   "rule_reasons": [
+    {
+     "id": "link_text_mismatch",
+     "severity": "high",
+     "message": "A link shows 'www.paypal.com' but goes to 'paypal.statement-view.net' (and 2 more)"
+    },
+    {
+     "id": "lookalike_domain",
+     "severity": "high",
+     "message": "A link goes to 'paypal.statement-view.net', which imitates paypal.com"
+    }
+   ],
+   "score": 0.8818299573357891,
+   "verdict": "phishing",
+   "result": {
+    "verdict": "phishing",
+    "score": 0.88,
+    "reasons": [
+     {
+      "id": "link_text_mismatch",
+      "severity": "high",
+      "message": "A link shows 'www.paypal.com' but goes to 'paypal.statement-view.net' (and 2 more)"
+     },
+     {
+      "id": "lookalike_domain",
+      "severity": "high",
+      "message": "A link goes to 'paypal.statement-view.net', which imitates paypal.com"
+     },
+     {
+      "id": "phishing_language",
+      "severity": "low",
+      "message": "The wording is similar to phishing emails (for example 'your', 'statement', 'is ready'). On its own this is a weak sign."
+     }
+    ]
+   }
+  },
+  {
+   "name": "homoglyphs in text and domains",
+   "input": {
+    "sender_name": "P\u0430yPal",
+    "sender_email": "service@xn--pypal-4ve.com",
+    "subject": "Your \u0430ccount needs attention",
+    "body_text": "Please review the recent \u0441\u043e activity on your account today.\nThe word \u03bfk looks odd.",
+    "links": [
+     {
+      "text": "Review",
+      "href": "https://p\u0430ypal.example/review"
+     }
+    ]
+   },
+   "cleaned": {
+    "sender_name": "P\u0430yPal",
+    "sender_email": "service@xn--pypal-4ve.com",
+    "subject": "Your \u0430ccount needs attention",
+    "body_text": "Please review the recent \u0441\u043e activity on your account today.\nThe word \u03bfk looks odd.",
+    "links": [
+     {
+      "text": "Review",
+      "href": "https://p\u0430ypal.example/review"
+     }
+    ],
+    "attachments": []
+   },
+   "rule_reasons": [
+    {
+     "id": "lookalike_domain",
+     "severity": "high",
+     "message": "Sender domain 'xn--pypal-4ve.com' imitates paypal.com (and 1 more)"
+    },
+    {
+     "id": "homoglyphs",
+     "severity": "high",
+     "message": "The word 'P\u0430yPal' uses look-alike letters from another alphabet (Greek or Cyrillic) to imitate English (and 1 more)"
+    }
+   ],
+   "score": 0.9716488104782448,
+   "verdict": "phishing",
+   "result": {
+    "verdict": "phishing",
+    "score": 0.97,
+    "reasons": [
+     {
+      "id": "lookalike_domain",
+      "severity": "high",
+      "message": "Sender domain 'xn--pypal-4ve.com' imitates paypal.com (and 1 more)"
+     },
+     {
+      "id": "homoglyphs",
+      "severity": "high",
+      "message": "The word 'P\u0430yPal' uses look-alike letters from another alphabet (Greek or Cyrillic) to imitate English (and 1 more)"
+     },
+     {
+      "id": "phishing_language",
+      "severity": "low",
+      "message": "The wording is similar to phishing emails (for example 'your', 'account', 'please'). On its own this is a weak sign."
+     }
+    ]
+   }
+  },
+  {
+   "name": "sender name shows another domain",
+   "input": {
+    "sender_name": "service@paypal.com",
+    "sender_email": "x@evil-mailer.example",
+    "subject": "Receipt",
+    "body_text": "Thanks for your payment.",
+    "links": []
+   },
+   "cleaned": {
+    "sender_name": "service@paypal.com",
+    "sender_email": "x@evil-mailer.example",
+    "subject": "Receipt",
+    "body_text": "Thanks for your payment.",
+    "links": [],
+    "attachments": []
+   },
+   "rule_reasons": [
+    {
+     "id": "sender_name_mismatch",
+     "severity": "high",
+     "message": "The sender name shows 'paypal.com' but the email comes from 'evil-mailer.example'"
+    }
+   ],
+   "score": 0.9821176559321446,
+   "verdict": "phishing",
+   "result": {
+    "verdict": "phishing",
+    "score": 0.98,
+    "reasons": [
+     {
+      "id": "sender_name_mismatch",
+      "severity": "high",
+      "message": "The sender name shows 'paypal.com' but the email comes from 'evil-mailer.example'"
+     },
+     {
+      "id": "phishing_language",
+      "severity": "low",
+      "message": "The wording is similar to phishing emails (for example 'your', 'payment', 'receipt'). On its own this is a weak sign."
+     }
+    ]
+   }
+  },
+  {
+   "name": "sender name claims a brand",
+   "input": {
+    "sender_name": "Bank of America Alerts",
+    "sender_email": "alerts@secure-mail.example",
+    "subject": "Please verify",
+    "body_text": "Please verify your identity.",
+    "links": []
+   },
+   "cleaned": {
+    "sender_name": "Bank of America Alerts",
+    "sender_email": "alerts@secure-mail.example",
+    "subject": "Please verify",
+    "body_text": "Please verify your identity.",
+    "links": [],
+    "attachments": []
+   },
+   "rule_reasons": [
+    {
+     "id": "sender_name_mismatch",
+     "severity": "medium",
+     "message": "The sender name says 'Bank of America Alerts' but the address is from 'secure-mail.example', not bankofamerica.com"
+    }
+   ],
+   "score": 0.9501138689205245,
+   "verdict": "suspicious",
+   "result": {
+    "verdict": "suspicious",
+    "score": 0.95,
+    "reasons": [
+     {
+      "id": "sender_name_mismatch",
+      "severity": "medium",
+      "message": "The sender name says 'Bank of America Alerts' but the address is from 'secure-mail.example', not bankofamerica.com"
+     },
+     {
+      "id": "phishing_language",
+      "severity": "low",
+      "message": "The wording is similar to phishing emails (for example 'please', 'your', 'verify'). On its own this is a weak sign."
+     }
+    ]
+   }
+  },
+  {
+   "name": "domains followed by a hyphen",
+   "input": {
+    "sender_name": "Help desk.store-team",
+    "sender_email": "help@ever-desk.store",
+    "subject": "Upgrade",
+    "body_text": "Upgrade at upgrade.my-free.example today.",
+    "links": [
+     {
+      "text": "upgrade.my-free.example",
+      "href": "https://upgrade.my-free.example/go"
+     }
+    ]
+   },
+   "cleaned": {
+    "sender_name": "Help desk.store-team",
+    "sender_email": "help@ever-desk.store",
+    "subject": "Upgrade",
+    "body_text": "Upgrade at upgrade.my-free.example today.",
+    "links": [
+     {
+      "text": "upgrade.my-free.example",
+      "href": "https://upgrade.my-free.example/go"
+     }
+    ],
+    "attachments": []
+   },
+   "rule_reasons": [],
+   "score": 0.20182953031727247,
+   "verdict": "safe",
+   "result": {
+    "verdict": "safe",
+    "score": 0.2,
+    "reasons": []
+   }
+  },
+  {
+   "name": "sender name domain matches",
+   "input": {
+    "sender_name": "paypal.com Support",
+    "sender_email": "support@mail.paypal.com",
+    "subject": "Hello",
+    "body_text": "A normal message from a normal sender.",
+    "links": []
+   },
+   "cleaned": {
+    "sender_name": "paypal.com Support",
+    "sender_email": "support@mail.paypal.com",
+    "subject": "Hello",
+    "body_text": "A normal message from a normal sender.",
+    "links": [],
+    "attachments": []
+   },
+   "rule_reasons": [],
+   "score": 0.508129125750875,
+   "verdict": "suspicious",
+   "result": {
+    "verdict": "suspicious",
+    "score": 0.51,
+    "reasons": [
+     {
+      "id": "phishing_language",
+      "severity": "low",
+      "message": "The wording is similar to phishing emails (for example 'hello', 'message', 'sender'). On its own this is a weak sign."
+     }
+    ]
+   }
+  },
+  {
+   "name": "urgency and sensitive requests",
+   "input": {
+    "sender_name": "Security Team",
+    "sender_email": "security@account-check.example",
+    "subject": "URGENT: final notice",
+    "body_text": "Your account will be permanently suspended within 24 hours.\nImmediate action required. Act now to avoid closure.\nPlease confirm your password and enter your credit card number.\nAlso send us two Google Play cards and your social security number.\nFailure to verify will result in your mailbox being deleted.\nWe noticed unusual sign-in activity and unauthorized access attempts.",
+    "links": []
+   },
+   "cleaned": {
+    "sender_name": "Security Team",
+    "sender_email": "security@account-check.example",
+    "subject": "URGENT: final notice",
+    "body_text": "Your account will be permanently suspended within 24 hours.\nImmediate action required. Act now to avoid closure.\nPlease confirm your password and enter your credit card number.\nAlso send us two Google Play cards and your social security number.\nFailure to verify will result in your mailbox being deleted.\nWe noticed unusual sign-in activity and unauthorized access attempts.",
+    "links": [],
+    "attachments": []
+   },
+   "rule_reasons": [
+    {
+     "id": "urgency",
+     "severity": "medium",
+     "message": "Uses pressure or threats to rush you: 'urgent', 'final notice'"
+    },
+    {
+     "id": "sensitive_request",
+     "severity": "high",
+     "message": "Asks for your password and card or bank details and gift cards. Real companies never ask for these by email"
+    }
+   ],
+   "score": 0.9958185547804558,
+   "verdict": "phishing",
+   "result": {
+    "verdict": "phishing",
+    "score": 1.0,
+    "reasons": [
+     {
+      "id": "sensitive_request",
+      "severity": "high",
+      "message": "Asks for your password and card or bank details and gift cards. Real companies never ask for these by email"
+     },
+     {
+      "id": "urgency",
+      "severity": "medium",
+      "message": "Uses pressure or threats to rush you: 'urgent', 'final notice'"
+     },
+     {
+      "id": "phishing_language",
+      "severity": "low",
+      "message": "The wording is similar to phishing emails (for example 'your', 'account', 'please'). On its own this is a weak sign."
+     }
+    ]
+   }
+  },
+  {
+   "name": "invisible characters inside words",
+   "input": {
+    "sender_name": "Pay\u200bPal\ufeff",
+    "sender_email": "  Support@Example-Pay.COM ",
+    "subject": "Con\u00adfirm your pass\u200bword",
+    "body_text": "Please con\u200bfirm your pass\u00adword now.\u2028Your acc\u200bount is lo\u200dcked.",
+    "links": [
+     {
+      "text": "Con\u200bfirm",
+      "href": "https://example-pay.com/c"
+     }
+    ]
+   },
+   "cleaned": {
+    "sender_name": "PayPal",
+    "sender_email": "support@example-pay.com",
+    "subject": "Confirm your password",
+    "body_text": "Please confirm your password now.Your account is locked.",
+    "links": [
+     {
+      "text": "Con\u200bfirm",
+      "href": "https://example-pay.com/c"
+     }
+    ],
+    "attachments": []
+   },
+   "rule_reasons": [
+    {
+     "id": "sender_name_mismatch",
+     "severity": "medium",
+     "message": "The sender name says 'PayPal' but the address is from 'example-pay.com', not paypal.com"
+    },
+    {
+     "id": "urgency",
+     "severity": "medium",
+     "message": "Uses pressure or threats to rush you: 'account is locked'"
+    },
+    {
+     "id": "sensitive_request",
+     "severity": "high",
+     "message": "Asks for your password. Real companies never ask for these by email"
+    }
+   ],
+   "score": 0.9994165554414103,
+   "verdict": "phishing",
+   "result": {
+    "verdict": "phishing",
+    "score": 1.0,
+    "reasons": [
+     {
+      "id": "sensitive_request",
+      "severity": "high",
+      "message": "Asks for your password. Real companies never ask for these by email"
+     },
+     {
+      "id": "sender_name_mismatch",
+      "severity": "medium",
+      "message": "The sender name says 'PayPal' but the address is from 'example-pay.com', not paypal.com"
+     },
+     {
+      "id": "urgency",
+      "severity": "medium",
+      "message": "Uses pressure or threats to rush you: 'account is locked'"
+     },
+     {
+      "id": "phishing_language",
+      "severity": "low",
+      "message": "The wording is similar to phishing emails (for example 'your', 'confirm', 'account'). On its own this is a weak sign."
+     }
+    ]
+   }
+  },
+  {
+   "name": "turkish i and other case-folding letters",
+   "input": {
+    "sender_name": "",
+    "sender_email": "someone@example.org",
+    "subject": "Unusual act\u0131vity detected",
+    "body_text": "We saw susp\u0131cious log\u0131n attempts.\n\u0130MMED\u0130ATE ACT\u0130ON REQU\u0130RED\nVisit www.\u212aayak.com today. \uff30ay now with a g\u0131ft card.",
+    "links": []
+   },
+   "cleaned": {
+    "sender_name": "",
+    "sender_email": "someone@example.org",
+    "subject": "Unusual act\u0131vity detected",
+    "body_text": "We saw susp\u0131cious log\u0131n attempts.\n\u0130MMED\u0130ATE ACT\u0130ON REQU\u0130RED\nVisit today. Pay now with a g\u0131ft card.",
+    "links": [
+     {
+      "text": "www.\u212aayak.com",
+      "href": "http://www.\u212aayak.com"
+     }
+    ],
+    "attachments": []
+   },
+   "rule_reasons": [
+    {
+     "id": "urgency",
+     "severity": "medium",
+     "message": "Uses pressure or threats to rush you: 'unusual act\u0131vity', 'susp\u0131cious log\u0131n attempts'"
+    },
+    {
+     "id": "sensitive_request",
+     "severity": "high",
+     "message": "Asks for gift cards. Real companies never ask for these by email"
+    }
+   ],
+   "score": 0.9216990540969026,
+   "verdict": "phishing",
+   "result": {
+    "verdict": "phishing",
+    "score": 0.92,
+    "reasons": [
+     {
+      "id": "sensitive_request",
+      "severity": "high",
+      "message": "Asks for gift cards. Real companies never ask for these by email"
+     },
+     {
+      "id": "urgency",
+      "severity": "medium",
+      "message": "Uses pressure or threats to rush you: 'unusual act\u0131vity', 'susp\u0131cious log\u0131n attempts'"
+     },
+     {
+      "id": "phishing_language",
+      "severity": "low",
+      "message": "The wording is similar to phishing emails (for example 'we', 'detected', 'visit'). On its own this is a weak sign."
+     }
+    ]
+   }
+  },
+  {
+   "name": "dates, copyright, addresses and urls are removed",
+   "input": {
+    "sender_name": "Northwind Team",
+    "sender_email": "news@northwind.example",
+    "subject": "[News] Re: Fwd: RE[2]: Weekly update",
+    "body_text": "Sent: Thu, 22 Aug 2002 14:38:22 +0100 (GMT)\nMeeting on Monday, March 3rd at 9:44 pm PDT, or 2002-09-30T00:15:00Z.\nYou may lose nothing; may 5th is fine. 22/08/2002 and 8.22.02 too.\nWrite to jo.e+news@mail.northwind.example or ..dots@x.example.\nRead more at www.northwind.example/news. Or https://northwind.example/a?b=c,\n\u00a9 2024 Northwind, Inc. All rights reserved. Copyright (c) 2019 by Northwind\nPrice went up 2009 to 2010 and $+1234 stayed.",
+    "links": [
+     {
+      "text": "Read more",
+      "href": "https://northwind.example/news"
+     }
+    ]
+   },
+   "cleaned": {
+    "sender_name": "Northwind Team",
+    "sender_email": "news@northwind.example",
+    "subject": "Weekly update",
+    "body_text": "Sent: ( )\nMeeting on , at , or .\nYou may lose nothing; is fine. and too.\nWrite to or .. .\nRead more at Or\n.\nPrice went up to and $+1234 stayed.",
+    "links": [
+     {
+      "text": "Read more",
+      "href": "https://northwind.example/news"
+     },
+     {
+      "text": "www.northwind.example/news",
+      "href": "http://www.northwind.example/news"
+     },
+     {
+      "text": "https://northwind.example/a?b=c",
+      "href": "https://northwind.example/a?b=c"
+     }
+    ],
+    "attachments": []
+   },
+   "rule_reasons": [],
+   "score": 0.16849800402961262,
+   "verdict": "safe",
+   "result": {
+    "verdict": "safe",
+    "score": 0.17,
+    "reasons": []
+   }
+  },
+  {
+   "name": "risky attachments and file mentions",
+   "input": {
+    "sender_name": "Accounts",
+    "sender_email": "accounts@billing.example",
+    "subject": "Invoice_2291.pdf.exe attached",
+    "body_text": "Open the attached Invoice_2291.pdf.exe and Scan.ZIP today.\nSee example.com/story/0,1,00.html (a web page, not a file).\nAlso report.docm and payroll(1).xlsm.",
+    "links": [
+     {
+      "text": "Download",
+      "href": "https://files.billing.example/download/Statement.zip"
+     },
+     {
+      "text": "Web page",
+      "href": "https://billing.example/help/index.html"
+     },
+     {
+      "text": "setup.msi",
+      "href": "https://billing.example/setup.msi?x=1"
+     }
+    ],
+    "attachments": [
+     "Invoice_2291.pdf.exe",
+     "  notes.txt ",
+     "",
+     "notes.txt",
+     "Photo.jpg.js",
+     "Archive.7z",
+     "page.html"
+    ]
+   },
+   "cleaned": {
+    "sender_name": "Accounts",
+    "sender_email": "accounts@billing.example",
+    "subject": "Invoice_2291.pdf.exe attached",
+    "body_text": "Open the attached Invoice_2291.pdf.exe and Scan.ZIP today.\nSee example.com/story/0,1,00.html (a web page, not a file).\nAlso report.docm and payroll(1).xlsm.",
+    "links": [
+     {
+      "text": "Download",
+      "href": "https://files.billing.example/download/Statement.zip"
+     },
+     {
+      "text": "Web page",
+      "href": "https://billing.example/help/index.html"
+     },
+     {
+      "text": "setup.msi",
+      "href": "https://billing.example/setup.msi?x=1"
+     }
+    ],
+    "attachments": [
+     "Invoice_2291.pdf.exe",
+     "notes.txt",
+     "Photo.jpg.js",
+     "Archive.7z",
+     "page.html"
+    ]
+   },
+   "rule_reasons": [
+    {
+     "id": "risky_attachment",
+     "severity": "high",
+     "message": "Has the attachment 'Invoice_2291.pdf.exe', which pretends to be a .pdf but is really a .exe: it's a program that can run on your computer"
+    }
+   ],
+   "score": 0.8293210503308999,
+   "verdict": "phishing",
+   "result": {
+    "verdict": "phishing",
+    "score": 0.83,
+    "reasons": [
+     {
+      "id": "risky_attachment",
+      "severity": "high",
+      "message": "Has the attachment 'Invoice_2291.pdf.exe', which pretends to be a .pdf but is really a .exe: it's a program that can run on your computer"
+     },
+     {
+      "id": "phishing_language",
+      "severity": "low",
+      "message": "The wording is similar to phishing emails (for example 'pdf', 'attached', 'payroll'). On its own this is a weak sign."
+     }
+    ]
+   }
+  },
+  {
+   "name": "plain-text body with bare urls and duplicate links",
+   "input": {
+    "sender_name": "",
+    "sender_email": "someone@example.org",
+    "subject": "Links",
+    "body_text": "Go to www.example-shop.com/login. Then http://example-shop.com/cart!\nAgain: www.example-shop.com/login.\nAnd (https://bit.ly/abc).",
+    "links": [
+     {
+      "text": "www.example-shop.com/login",
+      "href": "http://www.example-shop.com/login"
+     }
+    ]
+   },
+   "cleaned": {
+    "sender_name": "",
+    "sender_email": "someone@example.org",
+    "subject": "Links",
+    "body_text": "Go to Then\nAgain:\nAnd ( ).",
+    "links": [
+     {
+      "text": "www.example-shop.com/login",
+      "href": "http://www.example-shop.com/login"
+     },
+     {
+      "text": "http://example-shop.com/cart",
+      "href": "http://example-shop.com/cart"
+     },
+     {
+      "text": "https://bit.ly/abc",
+      "href": "https://bit.ly/abc"
+     }
+    ],
+    "attachments": []
+   },
+   "rule_reasons": [
+    {
+     "id": "url_shortener",
+     "severity": "medium",
+     "message": "A link uses the URL shortener bit.ly, which hides where it goes"
+    }
+   ],
+   "score": 0.31423137056360617,
+   "verdict": "safe",
+   "result": {
+    "verdict": "safe",
+    "score": 0.31,
+    "reasons": [
+     {
+      "id": "url_shortener",
+      "severity": "medium",
+      "message": "A link uses the URL shortener bit.ly, which hides where it goes"
+     }
+    ]
+   }
+  },
+  {
+   "name": "odd whitespace and line breaks",
+   "input": {
+    "sender_name": "  Maya\u00a0\u00a0Perera\t",
+    "sender_email": "someone@example.org",
+    "subject": "  Weekend\tplans\u3000 ",
+    "body_text": "Line one\r\nLine two\rLine three\u000bLine four\fLine five\u0085Line six\u001cLine seven\u2003end\n\n\n   \n\tIndented line\u001f",
+    "links": []
+   },
+   "cleaned": {
+    "sender_name": "Maya Perera",
+    "sender_email": "someone@example.org",
+    "subject": "Weekend plans",
+    "body_text": "Line one\nLine two\nLine three\nLine four\nLine five\nLine six\nLine seven end\nIndented line",
+    "links": [],
+    "attachments": []
+   },
+   "rule_reasons": [],
+   "score": 0.0730585561628916,
+   "verdict": "safe",
+   "result": {
+    "verdict": "safe",
+    "score": 0.07,
+    "reasons": []
+   }
+  },
+  {
+   "name": "non-latin scripts, accents and emoji",
+   "input": {
+    "sender_name": "Nimal \ud83d\ude00",
+    "sender_email": "nimal@example.lk",
+    "subject": "\u0dc1\u0dca\u200d\u0dbb\u0dd3 \u0dbd\u0d82\u0d9a\u0dcf trip \ud83d\ude00",
+    "body_text": "Caf\u00e9 plans for the \u0dc1\u0dca\u200d\u0dbb\u0dd3 \u0dbd\u0d82\u0d9a\u0dcf trip.\nBring x\u00b2 snacks \ud83d\ude00\ud83d\ude00\ud83d\ude00 and r\u00e9sum\u00e9.\nA quote with an emoji at the end of a long line that goes on and on \ud83d\ude00 and on.",
+    "links": [
+     {
+      "text": "A very long link text that will have to be shortened in the message \ud83d\ude00",
+      "href": "http://203.0.113.50/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+     },
+     {
+      "text": "caf\u00e9.example",
+      "href": "https://xn--caf-dma.example/"
+     }
+    ]
+   },
+   "cleaned": {
+    "sender_name": "Nimal \ud83d\ude00",
+    "sender_email": "nimal@example.lk",
+    "subject": "\u0dc1\u0dca\u0dbb\u0dd3 \u0dbd\u0d82\u0d9a\u0dcf trip \ud83d\ude00",
+    "body_text": "Caf\u00e9 plans for the \u0dc1\u0dca\u0dbb\u0dd3 \u0dbd\u0d82\u0d9a\u0dcf trip.\nBring x2 snacks \ud83d\ude00\ud83d\ude00\ud83d\ude00 and r\u00e9sum\u00e9.\nA quote with an emoji at the end of a long line that goes on and on \ud83d\ude00 and on.",
+    "links": [
+     {
+      "text": "A very long link text that will have to be shortened in the message \ud83d\ude00",
+      "href": "http://203.0.113.50/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+     },
+     {
+      "text": "caf\u00e9.example",
+      "href": "https://xn--caf-dma.example/"
+     }
+    ],
+    "attachments": []
+   },
+   "rule_reasons": [
+    {
+     "id": "ip_link",
+     "severity": "high",
+     "message": "A link goes to a raw IP address (203.0.113.50)"
+    },
+    {
+     "id": "homoglyphs",
+     "severity": "high",
+     "message": "The domain 'xn--caf-dma.example' uses international characters that can look like normal letters"
+    }
+   ],
+   "score": 0.3107245675875806,
+   "verdict": "suspicious",
+   "result": {
+    "verdict": "suspicious",
+    "score": 0.31,
+    "reasons": [
+     {
+      "id": "ip_link",
+      "severity": "high",
+      "message": "A link goes to a raw IP address (203.0.113.50)"
+     },
+     {
+      "id": "homoglyphs",
+      "severity": "high",
+      "message": "The domain 'xn--caf-dma.example' uses international characters that can look like normal letters"
+     }
+    ]
+   }
+  },
+  {
+   "name": "brand names are masked for the text model",
+   "input": {
+    "sender_name": "Bank of America",
+    "sender_email": "alerts@bankofamerica.com",
+    "subject": "Your PayPal and Pay  Pal and Wells\nFargo update",
+    "body_text": "Office 365 and office365 users, plus Bank of   America and LinkedIn members: Dropbox, DocuSign and Apple news.",
+    "links": []
+   },
+   "cleaned": {
+    "sender_name": "Bank of America",
+    "sender_email": "alerts@bankofamerica.com",
+    "subject": "Your PayPal and Pay Pal and Wells\nFargo update",
+    "body_text": "Office 365 and office365 users, plus Bank of America and LinkedIn members: Dropbox, DocuSign and Apple news.",
+    "links": [],
+    "attachments": []
+   },
+   "rule_reasons": [],
+   "score": 0.26913391219799093,
+   "verdict": "safe",
+   "result": {
+    "verdict": "safe",
+    "score": 0.27,
+    "reasons": []
+   }
+  },
+  {
+   "name": "typical phishing wording",
+   "input": {
+    "sender_name": "Account Services",
+    "sender_email": "service@secure-verify.example",
+    "subject": "Verify your account information",
+    "body_text": "Dear valued customer,\nWe are unable to verify your account information. Kindly click on the link below to verify your account and restore full access. Your account will be suspended if not verified.\nClick here to verify\nThank you for your cooperation.",
+    "links": [
+     {
+      "text": "Click here to verify",
+      "href": "http://verify-account.example/login"
+     }
+    ]
+   },
+   "cleaned": {
+    "sender_name": "Account Services",
+    "sender_email": "service@secure-verify.example",
+    "subject": "Verify your account information",
+    "body_text": "Dear valued customer,\nWe are unable to verify your account information. Kindly click on the link below to verify your account and restore full access. Your account will be suspended if not verified.\nClick here to verify\nThank you for your cooperation.",
+    "links": [
+     {
+      "text": "Click here to verify",
+      "href": "http://verify-account.example/login"
+     }
+    ],
+    "attachments": []
+   },
+   "rule_reasons": [
+    {
+     "id": "urgency",
+     "severity": "medium",
+     "message": "Uses pressure or threats to rush you: 'account will be suspended'"
+    }
+   ],
+   "score": 0.9986952483438156,
+   "verdict": "suspicious",
+   "result": {
+    "verdict": "suspicious",
+    "score": 1.0,
+    "reasons": [
+     {
+      "id": "urgency",
+      "severity": "medium",
+      "message": "Uses pressure or threats to rush you: 'account will be suspended'"
+     },
+     {
+      "id": "phishing_language",
+      "severity": "low",
+      "message": "The wording is similar to phishing emails (for example 'your', 'account', 'verify'). On its own this is a weak sign."
+     }
+    ]
+   }
+  },
+  {
+   "name": "short friendly note",
+   "input": {
+    "sender_name": "Priya",
+    "sender_email": "priya@example.lk",
+    "subject": "Thanks!",
+    "body_text": "Thanks for dinner yesterday, it was lovely. See you soon.",
+    "links": []
+   },
+   "cleaned": {
+    "sender_name": "Priya",
+    "sender_email": "priya@example.lk",
+    "subject": "Thanks!",
+    "body_text": "Thanks for dinner yesterday, it was lovely. See you soon.",
+    "links": [],
+    "attachments": []
+   },
+   "rule_reasons": [],
+   "score": 0.19576640329558606,
+   "verdict": "safe",
+   "result": {
+    "verdict": "safe",
+    "score": 0.2,
+    "reasons": []
+   }
+  },
+  {
+   "name": "empty email",
+   "input": {
+    "sender_name": "",
+    "sender_email": "nobody@example.org",
+    "subject": "",
+    "body_text": "",
+    "links": []
+   },
+   "cleaned": {
+    "sender_name": "",
+    "sender_email": "nobody@example.org",
+    "subject": "",
+    "body_text": "",
+    "links": [],
+    "attachments": []
+   },
+   "rule_reasons": [],
+   "score": 0.16076071720899,
+   "verdict": "safe",
+   "result": {
+    "verdict": "safe",
+    "score": 0.16,
+    "reasons": []
+   }
+  },
+  {
+   "name": "missing optional fields",
+   "input": {
+    "sender_email": "someone@example.org"
+   },
+   "cleaned": {
+    "sender_name": "",
+    "sender_email": "someone@example.org",
+    "subject": "",
+    "body_text": "",
+    "links": [],
+    "attachments": []
+   },
+   "rule_reasons": [],
+   "score": 0.16076071720899,
+   "verdict": "safe",
+   "result": {
+    "verdict": "safe",
+    "score": 0.16,
+    "reasons": []
+   }
+  },
+  {
+   "name": "gift card scam",
+   "input": {
+    "sender_name": "The Principal",
+    "sender_email": "principal.office@gmail.com",
+    "subject": "Quick favour",
+    "body_text": "Are you available? I need you to buy some gift cards for the staff today. Get 5 iTunes cards and send me the codes. It's urgent.",
+    "links": []
+   },
+   "cleaned": {
+    "sender_name": "The Principal",
+    "sender_email": "principal.office@gmail.com",
+    "subject": "Quick favour",
+    "body_text": "Are you available? I need you to buy some gift cards for the staff today. Get 5 iTunes cards and send me the codes. It's urgent.",
+    "links": [],
+    "attachments": []
+   },
+   "rule_reasons": [
+    {
+     "id": "urgency",
+     "severity": "medium",
+     "message": "Uses pressure or threats to rush you: 'urgent'"
+    },
+    {
+     "id": "sensitive_request",
+     "severity": "high",
+     "message": "Asks for gift cards. Real companies never ask for these by email"
+    }
+   ],
+   "score": 0.8729669109826482,
+   "verdict": "phishing",
+   "result": {
+    "verdict": "phishing",
+    "score": 0.87,
+    "reasons": [
+     {
+      "id": "sensitive_request",
+      "severity": "high",
+      "message": "Asks for gift cards. Real companies never ask for these by email"
+     },
+     {
+      "id": "urgency",
+      "severity": "medium",
+      "message": "Uses pressure or threats to rush you: 'urgent'"
+     }
+    ]
+   }
+  }
+ ],
+ "urls": [
+  {
+   "url": "https://login.paypal.com/x",
+   "urlsplit_error": false,
+   "path": "/x",
+   "host": "login.paypal.com",
+   "is_ip": false,
+   "registrable_domain": "paypal.com"
+  },
+  {
+   "url": "paypal.com/login",
+   "urlsplit_error": false,
+   "path": "paypal.com/login",
+   "host": "paypal.com",
+   "is_ip": false,
+   "registrable_domain": "paypal.com"
+  },
+  {
+   "url": "  HTTPS://WWW.Example.CO.UK./path ",
+   "urlsplit_error": false,
+   "path": "/path ",
+   "host": "www.example.co.uk",
+   "is_ip": false,
+   "registrable_domain": "example.co.uk"
+  },
+  {
+   "url": "http://user:pass@Example.com:8080/",
+   "urlsplit_error": false,
+   "path": "/",
+   "host": "example.com",
+   "is_ip": false,
+   "registrable_domain": "example.com"
+  },
+  {
+   "url": "http://[::1]/",
+   "urlsplit_error": false,
+   "path": "/",
+   "host": "::1",
+   "is_ip": true,
+   "registrable_domain": "::1"
+  },
+  {
+   "url": "http://[v1.fe]/",
+   "urlsplit_error": false,
+   "path": "/",
+   "host": "v1.fe",
+   "is_ip": false,
+   "registrable_domain": "v1.fe"
+  },
+  {
+   "url": "http://[vz.x]/",
+   "urlsplit_error": true,
+   "path": "",
+   "host": "",
+   "is_ip": false,
+   "registrable_domain": ""
+  },
+  {
+   "url": "http://[1.2.3.4]/",
+   "urlsplit_error": true,
+   "path": "",
+   "host": "",
+   "is_ip": false,
+   "registrable_domain": ""
+  },
+  {
+   "url": "http://[::1]x/",
+   "urlsplit_error": true,
+   "path": "",
+   "host": "",
+   "is_ip": false,
+   "registrable_domain": ""
+  },
+  {
+   "url": "http://x[::1]/",
+   "urlsplit_error": true,
+   "path": "",
+   "host": "",
+   "is_ip": false,
+   "registrable_domain": ""
+  },
+  {
+   "url": "http://[oops",
+   "urlsplit_error": true,
+   "path": "",
+   "host": "",
+   "is_ip": false,
+   "registrable_domain": ""
+  },
+  {
+   "url": "http://a]b",
+   "urlsplit_error": true,
+   "path": "",
+   "host": "",
+   "is_ip": false,
+   "registrable_domain": ""
+  },
+  {
+   "url": "http://192.168.001.1/",
+   "urlsplit_error": false,
+   "path": "/",
+   "host": "192.168.001.1",
+   "is_ip": false,
+   "registrable_domain": "001.1"
+  },
+  {
+   "url": "http://256.1.1.1/",
+   "urlsplit_error": false,
+   "path": "/",
+   "host": "256.1.1.1",
+   "is_ip": false,
+   "registrable_domain": "1.1"
+  },
+  {
+   "url": "http://1.2.3.4./",
+   "urlsplit_error": false,
+   "path": "/",
+   "host": "1.2.3.4",
+   "is_ip": true,
+   "registrable_domain": "1.2.3.4"
+  },
+  {
+   "url": "http://3232235777/",
+   "urlsplit_error": false,
+   "path": "/",
+   "host": "3232235777",
+   "is_ip": true,
+   "registrable_domain": "3232235777"
+  },
+  {
+   "url": "http://\u00b2/",
+   "urlsplit_error": false,
+   "path": "/",
+   "host": "\u00b2",
+   "is_ip": true,
+   "registrable_domain": "\u00b2"
+  },
+  {
+   "url": "http://ex\u2100mple.com/",
+   "urlsplit_error": true,
+   "path": "",
+   "host": "",
+   "is_ip": false,
+   "registrable_domain": ""
+  },
+  {
+   "url": "http://www.city.kobe.jp/",
+   "urlsplit_error": false,
+   "path": "/",
+   "host": "www.city.kobe.jp",
+   "is_ip": false,
+   "registrable_domain": "city.kobe.jp"
+  },
+  {
+   "url": "http://a.b.kobe.jp/",
+   "urlsplit_error": false,
+   "path": "/",
+   "host": "a.b.kobe.jp",
+   "is_ip": false,
+   "registrable_domain": "a.b.kobe.jp"
+  },
+  {
+   "url": "http://foo.ck/",
+   "urlsplit_error": false,
+   "path": "/",
+   "host": "foo.ck",
+   "is_ip": false,
+   "registrable_domain": "foo.ck"
+  },
+  {
+   "url": "http://www.ck/",
+   "urlsplit_error": false,
+   "path": "/",
+   "host": "www.ck",
+   "is_ip": false,
+   "registrable_domain": "www.ck"
+  },
+  {
+   "url": "http://user.github.io/",
+   "urlsplit_error": false,
+   "path": "/",
+   "host": "user.github.io",
+   "is_ip": false,
+   "registrable_domain": "user.github.io"
+  },
+  {
+   "url": "http://github.io/",
+   "urlsplit_error": false,
+   "path": "/",
+   "host": "github.io",
+   "is_ip": false,
+   "registrable_domain": "github.io"
+  },
+  {
+   "url": "http://co.uk/",
+   "urlsplit_error": false,
+   "path": "/",
+   "host": "co.uk",
+   "is_ip": false,
+   "registrable_domain": "co.uk"
+  },
+  {
+   "url": "http://a..com/",
+   "urlsplit_error": false,
+   "path": "/",
+   "host": "a..com",
+   "is_ip": false,
+   "registrable_domain": "a..com"
+  },
+  {
+   "url": "http://localhost/",
+   "urlsplit_error": false,
+   "path": "/",
+   "host": "localhost",
+   "is_ip": false,
+   "registrable_domain": "localhost"
+  },
+  {
+   "url": "http://xn--caf-dma.example/",
+   "urlsplit_error": false,
+   "path": "/",
+   "host": "xn--caf-dma.example",
+   "is_ip": false,
+   "registrable_domain": "xn--caf-dma.example"
+  },
+  {
+   "url": "http://caf\u00e9.example/",
+   "urlsplit_error": false,
+   "path": "/",
+   "host": "caf\u00e9.example",
+   "is_ip": false,
+   "registrable_domain": "caf\u00e9.example"
+  },
+  {
+   "url": "mailto:someone@example.com",
+   "urlsplit_error": false,
+   "path": "someone@example.com",
+   "host": "example.com",
+   "is_ip": false,
+   "registrable_domain": "example.com"
+  },
+  {
+   "url": "javascript:alert(1)",
+   "urlsplit_error": false,
+   "path": "alert(1)",
+   "host": "javascript",
+   "is_ip": false,
+   "registrable_domain": "javascript"
+  },
+  {
+   "url": "//cdn.example.com/x.js",
+   "urlsplit_error": false,
+   "path": "/x.js",
+   "host": "",
+   "is_ip": false,
+   "registrable_domain": ""
+  },
+  {
+   "url": "http://example.com\t/\npath",
+   "urlsplit_error": false,
+   "path": "/path",
+   "host": "example.com",
+   "is_ip": false,
+   "registrable_domain": "example.com"
+  },
+  {
+   "url": "\u0000\u0001 http://example.com/",
+   "urlsplit_error": false,
+   "path": "/",
+   "host": "example.com",
+   "is_ip": false,
+   "registrable_domain": "example.com"
+  },
+  {
+   "url": "http://[fe80::1%eth0]/",
+   "urlsplit_error": false,
+   "path": "/",
+   "host": "fe80::1%eth0",
+   "is_ip": true,
+   "registrable_domain": "fe80::1%eth0"
+  },
+  {
+   "url": "http://[fe80::1%]/",
+   "urlsplit_error": true,
+   "path": "",
+   "host": "",
+   "is_ip": false,
+   "registrable_domain": ""
+  },
+  {
+   "url": "http://[::ffff:1.2.3.4]/",
+   "urlsplit_error": false,
+   "path": "/",
+   "host": "::ffff:1.2.3.4",
+   "is_ip": true,
+   "registrable_domain": "::ffff:1.2.3.4"
+  },
+  {
+   "url": "http://[1::2::3]/",
+   "urlsplit_error": true,
+   "path": "",
+   "host": "",
+   "is_ip": false,
+   "registrable_domain": ""
+  },
+  {
+   "url": "http://[1:2:3:4:5:6:7:8:9]/",
+   "urlsplit_error": true,
+   "path": "",
+   "host": "",
+   "is_ip": false,
+   "registrable_domain": ""
+  },
+  {
+   "url": "http://[::1:2:3:4:5:6:7:8]/",
+   "urlsplit_error": true,
+   "path": "",
+   "host": "",
+   "is_ip": false,
+   "registrable_domain": ""
+  },
+  {
+   "url": "http://[1:2:3:4:5:6:7::]/",
+   "urlsplit_error": false,
+   "path": "/",
+   "host": "1:2:3:4:5:6:7::",
+   "is_ip": true,
+   "registrable_domain": "1:2:3:4:5:6:7::"
+  },
+  {
+   "url": "http://[:1:2:3:4:5:6:7]/",
+   "urlsplit_error": true,
+   "path": "",
+   "host": "",
+   "is_ip": false,
+   "registrable_domain": ""
+  },
+  {
+   "url": "http://[12345::]/",
+   "urlsplit_error": true,
+   "path": "",
+   "host": "",
+   "is_ip": false,
+   "registrable_domain": ""
+  },
+  {
+   "url": "http://[g::]/",
+   "urlsplit_error": true,
+   "path": "",
+   "host": "",
+   "is_ip": false,
+   "registrable_domain": ""
+  },
+  {
+   "url": "http://[\uff11::]/",
+   "urlsplit_error": true,
+   "path": "",
+   "host": "",
+   "is_ip": false,
+   "registrable_domain": ""
+  }
+ ],
+ "unquote": [
+  {
+   "text": "https://www.google.com/url?q=https%3A%2F%2Fpaypal.com",
+   "result": "https://www.google.com/url?q=https://paypal.com"
+  },
+  {
+   "text": "%E2%82%AC and %e2%82%ac",
+   "result": "\u20ac and \u20ac"
+  },
+  {
+   "text": "%E2%82 broken",
+   "result": "\ufffd broken"
+  },
+  {
+   "text": "%FF%FE%41",
+   "result": "\ufffd\ufffdA"
+  },
+  {
+   "text": "%EF%BB%BFbom",
+   "result": "\ufeffbom"
+  },
+  {
+   "text": "100% sure %zz %4",
+   "result": "100% sure %zz %4"
+  },
+  {
+   "text": "caf\u00e9%20bar%C3%A9",
+   "result": "caf\u00e9 bar\u00e9"
+  },
+  {
+   "text": "no escapes",
+   "result": "no escapes"
+  }
+ ],
+ "quote": [
+  {
+   "text": "short",
+   "result": "short"
+  },
+  {
+   "text": "  spaced   out\ttext\n",
+   "result": "spaced out text"
+  },
+  {
+   "text": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+   "result": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+  },
+  {
+   "text": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+   "result": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\u2026"
+  },
+  {
+   "text": "\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00",
+   "result": "\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\u2026"
+  },
+  {
+   "text": "word word word word word word word word word word word word word word word word word word word word ",
+   "result": "word word word word word word word word word word word word\u2026"
+  }
+ ]
+}

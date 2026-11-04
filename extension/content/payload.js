@@ -1,5 +1,6 @@
-// Fits an email read from Gmail to the API's limits (the API contract in CLAUDE.md),
-// so the API never rejects it for being too long. Pure functions, no DOM.
+// Fits an email read from Gmail to PhishLens's analysis limits (the API contract in
+// CLAUDE.md). The limits keep every analysis small and fast, and they're the same
+// for the in-browser analyser and the Python API. Pure functions, no DOM.
 //
 // Everything cut off here is a blind spot an attacker could hide in, so fitEmail()
 // reports whether anything was cut, and the banner then says the email was only
@@ -11,7 +12,8 @@
 // - Under `node --test`. Node has `module`, Chrome doesn't, so only Node runs the
 //   module.exports at the bottom.
 
-// Keep in step with api/schemas.py. Lengths are in characters.
+// Keep in step with api/schemas.py (the Python API checks the same limits).
+// Lengths are in characters.
 const LIMITS = {
   senderEmail: 254,
   senderName: 256,
@@ -21,7 +23,7 @@ const LIMITS = {
   attachmentName: 255,
   links: 1_000,
   attachments: 100,
-  // The API rejects requests over 100 KB (102,400 bytes). Stay a little under.
+  // The Python API rejects requests over 100 KB (102,400 bytes). Stay a little under.
   requestBytes: 100_000,
 };
 
@@ -44,7 +46,7 @@ function stripInvisible(text) {
 
 // Cuts text to at most maxLength characters, keeping the start.
 //
-// JS counts some characters (most emoji) as two, while the API (Python) counts
+// JS counts some characters (most emoji) as two, while Python counts
 // them as one. So text that fits here also fits there. Cutting between the two
 // halves of such a character would leave half a character, so cut just before it.
 function cutText(text, maxLength) {
@@ -157,8 +159,8 @@ function fitToRequestBytes(request) {
 
   // 3. Still too big (very long subject, name and attachment names together with
   //    the remaining body): shorten the body further, to nothing if need be. Only
-  //    made-up inputs are still too big after that; the API then answers 413 and
-  //    the banner says the analysis failed.
+  //    made-up inputs are still too big after that; they're analysed anyway, and
+  //    the banner says the email was only partly analysed.
   if (excess > 0) {
     const shorter = Math.max(0, request.body_text.length - excess);
     request.body_text = cutText(request.body_text, shorter);

@@ -1,9 +1,10 @@
 # PhishLens — CLAUDE.md
 
 ## What this project is
-PhishLens is a Chrome extension that warns Gmail users about phishing emails and explains *why*
-an email looks suspicious. A local Python API runs the classifier, so email content never leaves
-the user's machine.
+PhishLens is a browser extension (Chrome, Microsoft Edge) that warns Gmail users about phishing
+emails and explains *why* an email looks suspicious. Since Phase 5 the classifier runs inside the
+browser (a JavaScript copy of the Python model), so email content never leaves the user's
+machine. The Python code trains the model and is the reference implementation.
 
 Portfolio project by Senura Nimthaka. I'm learning as I build: briefly explain new concepts when
 you introduce them, and prefer simple, readable code over clever code.
@@ -12,16 +13,18 @@ you introduce them, and prefer simple, readable code over clever code.
 ```
 Gmail tab ─> content script (reads the open email)
           ─> service worker
-          ─> local API (127.0.0.1:8000)
-          ─> rules + ML model
+          ─> extension/analyzer/ (rules + ML model, in JavaScript)
           ─> verdict + reasons
           ─> warning banner shown inside Gmail
 ```
+Before Phase 5 the service worker called a local API (127.0.0.1:8000) instead; `api/` still
+exists as a development tool around the Python reference.
 
 Built in this order:
 1. `model/`: Python preprocessing, rule-based signals, scikit-learn classifier
 2. `api/`: FastAPI wrapper around `model/src/predict.py`
 3. `extension/`: Chrome Manifest V3 extension, vanilla JS, no build step
+4. `extension/analyzer/` + `tests/js/`: the browser-only analyser and its parity tests (Phase 5)
 
 ## Folder structure
 ```
@@ -38,7 +41,8 @@ phishlens/
 │   │   ├── preprocess.py      # parse .eml / text, clean, extract links
 │   │   ├── features.py        # rule-based signals that produce reasons
 │   │   ├── train.py           # train, evaluate, save model
-│   │   └── predict.py         # analyze(email) -> verdict + reasons
+│   │   ├── predict.py         # analyze(email) -> verdict + reasons
+│   │   └── export_browser.py  # export the model etc. to extension/analyzer/generated/
 │   ├── artifacts/             # saved model files
 │   ├── tests/
 │   └── requirements.txt
@@ -50,22 +54,34 @@ phishlens/
 │   ├── manifest.json
 │   ├── content/
 │   │   ├── selectors.js       # ALL Gmail DOM selectors live here
-│   │   ├── payload.js         # fit an email to the API's caps (pure, no DOM)
+│   │   ├── payload.js         # fit an email to the analysis caps (pure, no DOM)
 │   │   ├── gmail.js           # detect opened email, extract content
 │   │   ├── banner.js          # render the warning banner
 │   │   └── banner.css
 │   ├── background/
-│   │   └── service-worker.js  # talks to the local API
+│   │   └── service-worker.js  # ES module: loads the model, runs the analyser
+│   ├── analyzer/              # JavaScript twin of model/src (Phase 5)
+│   │   ├── python-compat.js   # Python-compatible regexes and string helpers
+│   │   ├── urls.js            # urlsplit, ipaddress, public suffixes, unquote
+│   │   ├── preprocess.js      # prepare_email
+│   │   ├── features.js        # the eight rules
+│   │   ├── predict.js         # TF-IDF, score, decide_verdict, analyze
+│   │   └── generated/         # written by export_browser.py; never edit by hand
 │   ├── popup/
 │   │   ├── popup.html
 │   │   ├── popup.js
 │   │   └── popup.css
-│   ├── icons/                 # icon16/32/48/128.png, made from docs/icon.svg
-│   └── tests/
-│       └── payload.test.js    # run with: node --test extension/tests/payload.test.js
+│   └── icons/                 # icon16/32/48/128.png, made from docs/icon.svg
+├── tests/js/                  # JS tests; run with: node --test tests/js/
+│   ├── golden_emails.py       # our own example emails for the parity tests
+│   ├── make_golden.py         # writes fixtures/ from the Python reference
+│   ├── fixtures/              # golden.json, unicode-classes.json
+│   └── *.test.mjs, payload.test.js
 └── docs/
     ├── banner-preview.html    # every banner state with sample data, incl. hostile text
     ├── icon.svg               # original artwork for the extension icons
+    ├── privacy-policy.md
+    ├── store-listing.md       # Edge Add-ons listing text and answers
     └── screenshots/
 ```
 
@@ -141,7 +157,7 @@ pass. At the end of each phase, update the README with what was built and how to
   - If any field or list had to be truncated, the banner must say the email was only
     partly analysed, never show a plain green "safe".
 - Three states that aren't verdicts, each with its own message:
-  - Server not running: the grey offline banner above.
+  - Server not running: the grey offline banner above. (Removed in Phase 5: no server.)
   - Couldn't read this email: the API answered 422, e.g. no sender address was found.
   - Analysis failed: the API answered 500.
 - Popup: API status (via /health), short explanation, link to the GitHub repo.
@@ -152,6 +168,48 @@ pass. At the end of each phase, update the README with what was built and how to
 - Toolbar badge with the last verdict
 - Sensitivity setting in the popup
 - Demo GIF and screenshots in the README
+
+### Phase 5: Browser-only version (branch `browser-only`)
+Goal: the extension analyses emails inside the browser, with no Python server, so people
+can install it without Python and it can be published on Microsoft Edge Add-ons.
+
+Plan:
+1. Export the trained model (TF-IDF vocabulary, IDF values, Logistic Regression weights
+   and intercept, rule weights) to JSON.
+2. Port the shared cleaning from `preprocess.py` to JavaScript.
+3. Port the eight rules and `decide_verdict()` to JavaScript, including the floor rules.
+4. Port the scoring so the JavaScript score matches Python.
+5. Parity tests: for every test email, JavaScript must give the same cleaned text, same
+   reasons, same verdict, and a score within 1e-6 of Python.
+6. Switch the extension to analyse emails in the browser and remove the server
+   dependency.
+7. Update docs, privacy policy and store listing materials.
+
+Rules:
+- Python stays as the training pipeline and reference implementation. When Python and
+  JavaScript disagree, Python is right; fix the JavaScript (or fix both, with a test).
+- Use Node's built-in test runner for JS tests (no frameworks, no bundler).
+- Committed test fixtures must use only our own example emails, never text from the
+  Nazario or SpamAssassin datasets.
+- Keep all JS tests, golden fixtures and any package.json outside `extension/` (in
+  `tests/js/`), so `extension/` contains only files that ship.
+
+How it fits together (done; see the README's "Browser-only analyser" section):
+- `extension/analyzer/*.js` mirror `model/src` function by function, with the same
+  patterns, rule order and messages. Change Python first, then the JS twin.
+- Write regex patterns the Python way and build them with `pyRegex()` (python-compat.js):
+  JS's own `\w`, `\b`, `\s`, case-insensitivity and string lengths differ from Python's.
+  Use `pySplit`, `pyStrip`, `pySplitlines`, `pyLen` instead of `split()`, `trim()`, `length`.
+- Never use `new URL()` for rule logic: `urls.js` copies Python's URL parsing.
+- No `\u` escapes in JS source: write `"\\u{200b}"` inside strings for pyRegex, or
+  `String.fromCodePoint()`. Keep `extension/` and `tests/js/` source ASCII.
+- After retraining, or any change to the Python cleaning, rules or scoring:
+  `python -m model.src.export_browser`, then `python -m tests.js.make_golden`, then
+  `pytest` and `node --test tests/js/`. With the datasets present,
+  `python -m tests.js.make_golden --corpus` adds a local check of every dataset email
+  (written to `model/data/`, never committed).
+- `extension/analyzer/generated/model.json` (about 2.6 MB) is committed on purpose: the
+  extension can't run without it. It's the one exception to "never commit model files".
 
 ## API contract
 `POST /analyze`
@@ -206,7 +264,8 @@ This is a security tool, so it must not introduce its own vulnerabilities.
 - Minimal extension permissions: no `<all_urls>`, no `tabs` or `storage` unless a feature
   truly needs it.
 - No remote code: all JS ships inside the extension.
-- Never commit datasets, large model files, `.env` files, or API keys.
+- Never commit datasets, large model files, `.env` files, or API keys. (Exception: the
+  exported `extension/analyzer/generated/model.json`, which the extension ships.)
 
 ## Conventions
 - Python 3.11+, type hints, black formatting, pytest
@@ -221,4 +280,7 @@ This is a security tool, so it must not introduce its own vulnerabilities.
   corrupted files before.
 
 ## How to run
-(Fill in as each phase is completed.)
+See the README's "Install" (users) and "For developers". In short, from the repo root:
+- Python tests: `.venv\Scripts\python -m pytest`
+- JS tests: `node --test tests/js/` (Node 22+, no packages)
+- Extension: Load unpacked → `extension/` (no server needed since Phase 5)

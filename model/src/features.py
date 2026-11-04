@@ -296,7 +296,12 @@ def lookalike_domain(email: dict) -> list[dict]:
     if brand_domain := imitated_brand(sender_host):
         findings.append(f"Sender domain '{quote(sender_host)}' imitates {brand_domain}")
     for link in email.get("links", []):
-        for host in {host_of(link["href"]), *domains_in_text(link["text"])}:
+        # dict.fromkeys, not a set: a set's order changes from run to run, so when
+        # both the href and the text imitate a brand the message would too. The
+        # browser version (extension/analyzer) must give the same message.
+        for host in dict.fromkeys(
+            [host_of(link["href"]), *domains_in_text(link["text"])]
+        ):
             if brand_domain := imitated_brand(host):
                 findings.append(
                     f"A link goes to '{quote(host)}', which imitates {brand_domain}"
@@ -582,6 +587,21 @@ def _decoy_type(file_name: str) -> str | None:
     return parts[1] if len(parts) == 3 and parts[1] in _DECOY_FILE_TYPES else None
 
 
+def _url_path(href: str) -> str:
+    """The path of a link ("/files/Scan.zip"), or '' if it has none or can't be parsed.
+
+    urlsplit raises ValueError for hrefs like "http://[oops/x.exe". Without the
+    try, one such link made the whole analysis fail, so a phisher could switch
+    PhishLens off for their email by adding it.
+    """
+    if "://" not in href:
+        return ""
+    try:
+        return urlsplit(href).path
+    except ValueError:
+        return ""
+
+
 def risky_attachment(email: dict) -> list[dict]:
     """Has an attachment, mentions a file, or links a download of a type that is often
     used to deliver malware. Real attachments (from the optional "attachments" field)
@@ -597,7 +617,7 @@ def risky_attachment(email: dict) -> list[dict]:
         for m in _FILE_NAME_RE.finditer(_PATH_WORD_RE.sub(" ", text)):
             found.append((m.group(), m.group(1).lower(), False))
     for link in email.get("links", []):
-        path = urlsplit(link["href"]).path if "://" in link["href"] else ""
+        path = _url_path(link["href"])
         name = path.rsplit("/", 1)[-1]
         ext = _risky_type(name) if _FILE_NAME_RE.fullmatch(name) else None
         if ext and ext not in _NOT_RISKY_IN_LINKS:

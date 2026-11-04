@@ -16,7 +16,7 @@ const BANNER_CLASS = "phishlens-banner";
 const SEVERITY_LABELS = { high: "High", medium: "Medium", low: "Low" };
 
 // Builds a banner for one message's outcome (see analyseMessage in gmail.js):
-//   outcome.state      "verdict", "offline", "unreadable" or "failed"
+//   outcome.state      "verdict", "unreadable" or "failed"
 //   outcome.result     { verdict, score, reasons } when state is "verdict"
 //   outcome.truncated  true if the email was only partly analysed
 // onDismiss is called when the user closes the banner; onRetry when they click
@@ -59,13 +59,6 @@ function createBanner(outcome, { onDismiss, onRetry }) {
 // The banner's colour ("tone"), title and extra lines for an outcome.
 function bannerContent(outcome) {
   const partly = "This email is too long to check in full, so part of it wasn't checked.";
-  if (outcome.state === "offline") {
-    return {
-      tone: "neutral",
-      title: "PhishLens can't check this email: its local server isn't running.",
-      lines: ["Start the server (the PhishLens popup shows how), then click Try again."],
-    };
-  }
   if (outcome.state === "unreadable") {
     return {
       tone: "neutral",
@@ -77,7 +70,7 @@ function bannerContent(outcome) {
     return {
       tone: "neutral",
       title: "PhishLens couldn't check this email: the analysis failed.",
-      lines: ["Click Try again. If it keeps failing, check the server's window for errors."],
+      lines: ["Click Try again. If it keeps failing, reload this Gmail tab."],
     };
   }
 
@@ -169,7 +162,7 @@ function reasonsSection(result, tone) {
 // both domains stand out and the user can judge them. A quote only counts when it
 // starts after a space or "(" and ends before a space or punctuation, so the
 // apostrophe in "doesn't" is left alone. The quotes themselves stay, so the banner
-// shows the message exactly as the API sent it.
+// shows the message exactly as the analyser wrote it.
 const QUOTED_VALUE = /(^|[\s(])'([^']+)'(?=$|[\s,.;:)])/g;
 
 function appendWithQuotes(parent, text) {
