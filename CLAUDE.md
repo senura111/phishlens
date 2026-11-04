@@ -280,7 +280,7 @@ This is a security tool, so it must not introduce its own vulnerabilities.
   corrupted files before.
 
 ## How to run
-See the README's "How to run". In short, from the repo root:
+See the README's "Install" (users) and "For developers". In short, from the repo root:
 - Python tests: `.venv\Scripts\python -m pytest`
 - JS tests: `node --test tests/js/` (Node 22+, no packages)
 - Extension: Load unpacked → `extension/` (no server needed since Phase 5)

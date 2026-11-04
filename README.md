@@ -12,9 +12,34 @@ a JavaScript copy that gives the same answers.
        alt="A red PhishLens banner above a Gmail email titled 'Your account will be suspended': 'This email is likely phishing.' Its reasons: a link shows paypal.com but goes to 185.22.10.4, a link goes to a raw IP address, urgency phrases, and phishing-like wording. Model score 0.99.">
 </p>
 
-> **Status:** Phases 1 to 3 (the model, the local API and the Chrome extension) are
-> done. Phase 5 (on the `browser-only` branch) moves the analysis into the browser, so
-> no Python is needed to use the extension. See [Roadmap](#roadmap).
+> **Status:** Version 2.0.0 analyses emails inside the browser, so no Python is needed
+> to use it. Phases 1, 2, 3 and 5 are done; see [Roadmap](#roadmap).
+
+## Install
+
+No Python and no server: the trained model ships inside the extension. Works in Chrome
+and Microsoft Edge.
+
+1. Download the `phishlens-extension-….zip` file from the **Assets** of the
+   [latest release](https://github.com/senura111/phishlens/releases/latest).
+2. Unzip it (right-click → **Extract All…**). Keep the unzipped folder somewhere it can
+   stay: the browser loads the extension from that folder, so deleting or moving it
+   removes the extension.
+3. Load it in your browser:
+   - **Chrome:** open `chrome://extensions`, turn on **Developer mode**, click
+     **Load unpacked** and choose the unzipped folder (the one with `manifest.json`
+     directly inside it).
+   - **Edge:** open `edge://extensions`, turn on **Developer mode**, click
+     **Load unpacked** and choose the same folder.
+4. Open Gmail (reload the tab if it was already open) and open an email. The banner
+   appears above it. Click the PhishLens toolbar icon (pin it from the puzzle-piece
+   menu) to check that it says "Ready".
+
+**To update:** download the new zip, replace the folder's contents with it, click the
+reload arrow on PhishLens's card in `chrome://extensions` (or `edge://extensions`), and
+reload Gmail.
+
+To change the code or retrain the model, see [For developers](#for-developers).
 
 ## How it works
 
@@ -58,7 +83,7 @@ Gmail tab ─> content script (reads the open email)
 | 2 | Local API: FastAPI `POST /analyze` and `GET /health` | Done (see [Local API](#local-api-phase-2)) |
 | 3 | Chrome extension (Manifest V3): Gmail banner and popup | Done (see [Chrome extension](#chrome-extension-phase-3)) |
 | 4 | Polish: link highlighting, toolbar badge, sensitivity setting, demo GIF | Optional |
-| 5 | Browser-only: the model runs in JavaScript, no Python server; ready for Microsoft Edge Add-ons | Done on `browser-only` (see [Browser-only analyser](#browser-only-analyser-phase-5)) |
+| 5 | Browser-only: the model runs in JavaScript, no Python server; ready for Microsoft Edge Add-ons | Done (see [Browser-only analyser](#browser-only-analyser-phase-5)) |
 
 ## Model results (v1)
 
@@ -670,11 +695,20 @@ phishlens/
 └── docs/        # banner preview, icon artwork, screenshots, privacy policy, store listing
 ```
 
-## How to run
+## For developers
+
+You only need this to change the code, run the tests or retrain the model. To just use
+PhishLens, see [Install](#install).
+
+Clone the repository first:
+
+```bash
+git clone https://github.com/senura111/phishlens.git
+```
 
 ### Model (Phase 1)
 
-Requires Python 3.11+. From the repo root on Windows:
+Retraining needs Python 3.11+. From the repo root on Windows:
 
 ```bash
 py -m venv .venv
@@ -739,14 +773,10 @@ curl -X POST http://127.0.0.1:8000/analyze -H "Content-Type: application/json" -
 
 The tests run with the rest: `.venv\Scripts\python -m pytest`.
 
-### Browser extension (Phases 3 and 5)
+### Browser extension from source (Phases 3 and 5)
 
-No Python and no server needed: the trained model ships inside `extension/`.
-
-1. In Chrome, open `chrome://extensions` (in Edge, `edge://extensions`), turn on
-   **Developer mode**, click **Load unpacked** and choose the `extension` folder.
-2. Open Gmail (reload the tab if it was already open) and open an email. The banner
-   appears above it. Click the PhishLens toolbar icon to check the analyser is ready.
+No Python needed to run it: the trained model ships inside `extension/`. Load it like
+the release zip in [Install](#install), but choose the repository's `extension` folder.
 
 After changing the extension's code, click the reload arrow on its card in
 `chrome://extensions`, then reload the Gmail tab: the old content script stays in an
@@ -774,8 +804,10 @@ With the datasets downloaded, `.venv\Scripts\python -m tests.js.make_golden --co
 also writes Python's answers for every dataset email to `model/data/` (gitignored);
 the next `node --test tests/js/` then checks JavaScript against all of them.
 
-To package the extension for a store, zip the *contents* of `extension/` (so
-`manifest.json` is at the top level of the zip). The listing text is in
+To package a release (the zip attached to the GitHub release, and the one a store
+takes), run both test suites, then zip the *contents* of `extension/` so `manifest.json`
+is at the top level of the zip, and name it `phishlens-extension-v<version>.zip` with
+the version from `manifest.json`. The store listing text is in
 [docs/store-listing.md](docs/store-listing.md).
 
 ## License

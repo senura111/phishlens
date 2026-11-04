@@ -10,7 +10,7 @@ submitting: they can change.
   zip). `extension/` holds only files that ship; tests and fixtures live in `tests/js/`.
 - Version: `2.0.0` (from `manifest.json`; raise it for every new upload). 1.0.0 was
   the server-based release on GitHub; 2.0.0 is the first browser-only version.
-- Before zipping, run the tests (README, "How to run").
+- Before zipping, run the tests (README, "For developers").
 
 ## Name
 
@@ -69,9 +69,9 @@ phishing, Gmail, email security, scam detector, fraud, privacy, safe email
 
 - Website: https://github.com/senura111/phishlens
 - Support: https://github.com/senura111/phishlens/issues
-- Privacy policy URL: the published copy of [privacy-policy.md](privacy-policy.md)
-  (for example its GitHub page once the `browser-only` branch is merged into `main`:
-  https://github.com/senura111/phishlens/blob/main/docs/privacy-policy.md).
+- Privacy policy URL: https://senura111.github.io/phishlens/privacy-policy.html
+  ([privacy-policy.md](privacy-policy.md), published by GitHub Pages from `main`'s
+  `docs/` folder).
 
 ## Privacy answers
 
