@@ -265,6 +265,11 @@ footers. Some biases can't be cleaned away:
   password reset 0.98. The verdict rules keep them amber instead of red, but they are
   still false alarms. The urgency rule adds to this for password resets, because
   genuine ones say "this link expires in 24 hours".
+  A real example, seen in Gmail with the extension: Microsoft's "Keep your Copilot
+  history: sign in by December 31" email gets amber (score 0.91), with the urgency
+  reason quoting "will be deleted" plus phishing_language. No rule-based evidence
+  fired, so the verdict rules kept it out of red, as designed, but it is still a
+  false alarm.
   **Future fix:** train on modern legitimate transactional email (receipts, password
   resets, shipping notices, account alerts), then re-check the urgency phrases that
   genuine services use.
