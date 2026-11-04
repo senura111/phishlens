@@ -1,6 +1,6 @@
 # PhishLens privacy policy
 
-*Last updated: 4 November 2026. Applies to PhishLens 1.0.0 and later (the browser-only
+*Last updated: 4 November 2026. Applies to PhishLens 2.0.0 and later (the browser-only
 version).*
 
 PhishLens is a browser extension that warns you about phishing emails in Gmail and

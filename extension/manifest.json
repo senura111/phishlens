@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "PhishLens",
-  "version": "1.0.0",
+  "version": "2.0.0",
   "description": "Warns about phishing emails in Gmail and explains why. Emails are analysed inside your browser and never sent anywhere.",
   "icons": {
     "16": "icons/icon16.png",

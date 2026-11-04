@@ -8,7 +8,8 @@ submitting: they can change.
 
 - Zip the **contents** of `extension/` (so `manifest.json` is at the top level of the
   zip). `extension/` holds only files that ship; tests and fixtures live in `tests/js/`.
-- Version: `1.0.0` (from `manifest.json`; raise it for every new upload).
+- Version: `2.0.0` (from `manifest.json`; raise it for every new upload). 1.0.0 was
+  the server-based release on GitHub; 2.0.0 is the first browser-only version.
 - Before zipping, run the tests (README, "How to run").
 
 ## Name
