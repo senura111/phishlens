@@ -165,7 +165,19 @@ def extract_fields(msg: EmailMessage) -> dict:
 # --- Cleaning used for training AND prediction ---------------------------------------
 
 URL_RE = re.compile(r"(?:https?://|www\.)[^\s<>\"'()\[\]]+", re.IGNORECASE)
-EMAIL_RE = re.compile(r"\b[\w.+-]+@[\w-]+(?:\.[\w-]+)+\b")
+# An email address starts at the first letter or digit of a run of address characters
+# ("..jo.e@x.com" -> "jo.e@x.com"). The match starts at the beginning of the run
+# (the lookbehind) and keeps any leading ".", "+" or "-" in group 1, which
+# remove_emails() puts back. Starting anywhere else, a long run like "1.1.1.1..." was
+# tried again from every position, each attempt scanning to the end of the run:
+# 100 KB took over 30 seconds.
+EMAIL_RE = re.compile(r"(?<![\w.+-])([.+-]*)\w[\w.+-]*@[\w-]+(?:\.[\w-]+)+\b")
+
+
+def remove_emails(text: str) -> str:
+    """Replace each email address with a space."""
+    return EMAIL_RE.sub(r"\1 ", text)
+
 
 _MONTH = (
     r"(?:jan(?:uary)?|feb(?:ruary)?|mar(?:ch)?|apr(?:il)?|may|june?|july?|aug(?:ust)?"
@@ -231,7 +243,7 @@ def clean_text(text: str) -> str:
     # text. Old plain-text mail shows raw URLs while modern HTML mail hides them behind
     # link text, so even a placeholder word would hint at the email's age.
     text = URL_RE.sub(" ", text)
-    text = EMAIL_RE.sub(" ", text)
+    text = remove_emails(text)
     text = _COPYRIGHT_RE.sub(" ", text)  # before dates: it uses the year to match
     text = DATE_RE.sub(" ", text)
     return tidy_lines(text)

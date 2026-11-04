@@ -1,4 +1,5 @@
 import mailbox
+import time
 import unicodedata
 from email.message import EmailMessage
 
@@ -75,6 +76,28 @@ def test_clean_text_keeps_ordinary_words_and_urgency_phrases():
 def test_clean_text_removes_urls_emails_and_invisible_characters():
     text = "Log in at https://paypa1.com/x or write to help@paypa1.com pay\u200bpal"
     assert pp.clean_text(text) == "Log in at or write to paypal"
+
+
+def test_remove_emails_starts_at_the_first_letter_or_digit():
+    assert pp.remove_emails("mail jo.e+x@a-b.co.uk now") == "mail   now"
+    # Leading ".", "+" or "-" aren't part of the address and stay in the text.
+    assert pp.remove_emails("(..jo@x.com)") == "(.. )"
+    assert pp.remove_emails("+-a@x.com") == "+- "
+    assert pp.remove_emails("1@x.com") == " "
+    # No letter or digit before the "@", or no dot in the domain: not an address.
+    assert pp.remove_emails("..@x.com and a@localhost") == "..@x.com and a@localhost"
+    # After a failed address the next run can still match.
+    assert pp.remove_emails("a@b@c.com") == "a@ "
+
+
+def test_remove_emails_is_fast_on_long_dotted_runs():
+    # "1.1.1.1..." for 100 KB took over 30 seconds before the regex was fixed to
+    # start only at the beginning of a run of address characters.
+    text = "1." * 50_000 + " write to help@paypa1.com"
+    start = time.perf_counter()
+    result = pp.remove_emails(text)
+    assert time.perf_counter() - start < 1
+    assert result.endswith("write to  ")
 
 
 def test_clean_text_removes_copyright_footers_but_not_the_word_copyright():
