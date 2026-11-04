@@ -6,8 +6,8 @@ looks suspicious.
 The classifier runs in a small Python API on your own machine, so email content never leaves
 your computer.
 
-> **Status:** early development. The model can be trained and evaluated; the API and the
-> extension are not built yet. See [Roadmap](#roadmap).
+> **Status:** Phase 1 (the model) is done, with the known limitations listed below. The
+> API and the extension are not built yet. See [Roadmap](#roadmap).
 
 ## How it works
 
@@ -41,7 +41,7 @@ Gmail tab ─> content script (reads the open email)
 
 | Phase | What | Status |
 | ----- | ---- | ------ |
-| 1 | Model: preprocessing, rule-based signals, scikit-learn classifier | In progress (training done; `predict.analyze()` next) |
+| 1 | Model: preprocessing, rule-based signals, scikit-learn classifier | Done (see [Known limitations](#known-limitations)) |
 | 2 | Local API: FastAPI `POST /analyze` and `GET /health` | Not started |
 | 3 | Chrome extension (Manifest V3): Gmail banner and popup | Not started |
 | 4 | Polish: link highlighting, toolbar badge, sensitivity setting, demo GIF | Optional |
@@ -53,140 +53,200 @@ Gmail tab ─> content script (reads the open email)
 > scores say the model separates *these* datasets well. Real-world accuracy on a modern
 > inbox will be lower, especially on marketing and transactional email.
 
-**Setup.** 6,776 English emails (2,753 phishing, 4,023 safe) after cleaning. Emails whose
-text is at least 80% similar (TF-IDF cosine) are grouped into one campaign: 6,031
-campaigns, the largest a 29-email "your mailbox will be deactivated" campaign spanning
-2016–2022. `GroupShuffleSplit` puts 80% of campaigns in train and 20% in test, so no
-campaign is on both sides: 5,417 train emails and 1,359 test emails (584 phishing).
+**Setup.** 6,785 English emails (2,762 phishing, 4,023 safe) after cleaning. That's 9
+more than before the line-break fix: keeping line breaks changed some cleaned texts, so
+9 fewer phishing emails count as exact duplicates. Emails whose text is at least 80%
+similar (TF-IDF cosine) are grouped into one campaign: 6,035 campaigns, the largest a
+29-email "your mailbox will be deactivated" campaign spanning 2016–2022.
+`GroupShuffleSplit` puts 80% of campaigns in train and 20% in test, so no campaign is on
+both sides: 5,441 train emails and 1,344 test emails (559 phishing, 785 safe).
 
-**Scoring.** All three approaches are Logistic Regression with `class_weight="balanced"`.
+**Model.** All three approaches are Logistic Regression with `class_weight="balanced"`.
 The text model reads the subject and body only (TF-IDF of words and word pairs, letters
-only). An email is *flagged* when its verdict is phishing (score ≥ 0.8) or suspicious
-(0.5–0.8), i.e. when it would get a red or amber banner. A single medium-severity rule
-(such as urgency) can't make an email "phishing" on its own: that needs a high-severity
-rule, two medium ones, or a text score over 0.8 without the rules' help. Two rules,
-ip_link and homoglyphs, lift any score to at least "suspicious" (see
-[the floor](#the-suspicious-floor-ip_link-and-homoglyphs-only) below).
+only). Brand names are replaced by a placeholder that the model ignores (see
+[Brand masking](#brand-masking)). The rules go in as nine extra columns, one per rule.
+
+### Verdict rules
+
+| Verdict | When |
+| --- | --- |
+| **Phishing** (red) | score ≥ 0.8 **and** at least one high-severity rule, or two *different* medium-severity rules |
+| **Suspicious** (amber) | score 0.5–0.8; or score ≥ 0.8 without such a rule; or ip_link / homoglyphs fired, whatever the score |
+| **Safe** (green) | score below 0.5 and neither ip_link nor homoglyphs fired |
+
+**Why red always needs a rule-based reason.** A red banner should point at something
+concrete the user can check: a lookalike domain, a link that goes somewhere other than
+it says, a sender name that doesn't match the address. The text model can't provide
+that. It only knows which words phishing tends to use, and in this training data words
+like "your order", "payment" and "invoice" appear *only* in phishing, because the
+legitimate emails contain no receipts. On its own it can't tell a real receipt from a
+fake one. One medium-severity rule isn't enough either: real password resets say "this
+link expires in 24 hours", which the urgency rule flags. So the text and a single medium
+rule can raise an email to amber, never to red. People stop trusting warnings that cry
+wolf, and red is the warning that has to stay trustworthy.
+
+**What it costs.** On the test set, tightening red moved **156 phishing emails from red
+to amber and none to safe**. 111 of them had urgency as their only medium rule. Safe
+emails were unaffected (0 red, 5 amber, before and after).
+
+| Recall of the saved model | Before tightening | After |
+| --- | --- | --- |
+| Counting only red ("phishing") as caught | 0.571 | **0.292** |
+| Counting red or amber as caught | 0.962 | **0.962** |
+
+Every flagged email also gets a low-severity **phishing_language** reason naming the
+words that pushed the score up, e.g. "The wording is similar to phishing emails (for
+example 'your', 'order', 'payment'). On its own this is a weak sign." So an amber
+banner always says why, even when no rule fired.
+
+### Test set results
+
+An email counts as *flagged* when it gets a red or amber banner.
 
 | Approach | Precision | Recall | F1 | False positives | Missed phishing |
 | --- | --- | --- | --- | --- | --- |
-| Rules only | 0.925 | 0.721 | 0.810 | 34 | 163 |
-| Text only | 0.988 | 0.981 | 0.985 | 7 | 11 |
-| **Text + rules** (saved) | **0.991** | **0.971** | **0.981** | **5** | **17** |
+| Rules only | 0.924 | 0.714 | 0.805 | 33 | 160 |
+| Text only | 0.987 | 0.975 | 0.981 | 7 | 14 |
+| **Text + rules** (saved) | **0.991** | **0.962** | **0.976** | **5** | **21** |
 
 Confusion matrices (rows = true label, columns = prediction):
 
 | | Rules only: flagged | not flagged | Text only: flagged | not flagged | Text + rules: flagged | not flagged |
 | --- | --- | --- | --- | --- | --- | --- |
-| Phishing | 421 | 163 | 573 | 11 | 567 | 17 |
-| Safe | 34 | 741 | 7 | 768 | 5 | 770 |
+| Phishing | 399 | 160 | 545 | 14 | 538 | 21 |
+| Safe | 33 | 752 | 7 | 778 | 5 | 780 |
 
-No safe test email got a red "phishing" verdict from the text or text + rules
-models; all their false positives were amber "suspicious".
+Verdicts of the saved model:
+
+| True label | Safe | Suspicious | Phishing |
+| --- | --- | --- | --- |
+| Phishing (559) | 21 | 375 | 163 |
+| Safe (785) | 780 | 5 | **0** |
+
+No safe test email gets a red banner from the saved model. (The rules-only model would
+give 13 safe emails a red banner, another reason it isn't used.)
 
 **False positives by source.** `hard_ham` is legitimate mail that looks spammy
 (newsletters, promotions), the closest thing in the data to modern marketing email:
 
 | Source | Safe test emails | Rules only | Text only | Text + rules |
 | --- | --- | --- | --- | --- |
-| easy_ham | 462 | 9 (1.9%) | 1 (0.2%) | 1 (0.2%) |
-| easy_ham_2 | 264 | 3 (1.1%) | 1 (0.4%) | 0 (0.0%) |
-| **hard_ham** | **49** | **22 (44.9%)** | **5 (10.2%)** | **4 (8.2%)** |
+| easy_ham | 483 | 13 (2.7%) | 1 (0.2%) | 2 (0.4%) |
+| easy_ham_2 | 263 | 3 (1.1%) | 2 (0.8%) | 0 (0.0%) |
+| **hard_ham** | **39** | **17 (43.6%)** | **4 (10.3%)** | **3 (7.7%)** |
 
-The hard_ham false positives are promotions (a software release announcement, an
-online-store offer, a SourceForge update) plus one Linux-Announce digest with a raw-IP
-link, flagged by the floor. With only 49 hard_ham test emails these rates
-are rough, but the pattern is clear: marketing email is where false positives will
-come from. Rules alone flag almost half of it, because urgency and offers ("act now",
-"30 dollar thank you") read like pressure tactics.
+The saved model's 5 false positives: two news items that use the word "urgent", a
+technology newsletter, an online-store newsletter, and a Linux-Announce digest with a
+raw-IP link (lifted by the floor). With only 39 hard_ham test emails these rates are
+rough, but the pattern is clear: marketing email is where false positives come from.
 
-**Which approach is saved: text + rules.** Its F1 is a hair lower than text only
-(0.981 vs 0.985, a difference of a few emails), but it was chosen for two reasons:
+**Which approach is saved: text + rules.** Its F1 is a hair lower than text only (0.976
+vs 0.981), but it makes fewer false positives (5 vs 7, and 3 vs 4 on hard_ham), at the
+cost of 7 more missed phishing emails out of 559. It also leans a little less on the
+datasets' writing style: compared with the text-only model it puts 10% less weight on
+conversational style words (it, the, but, think) and 16% less on mailing-list topic
+words (linux, razor, perl).
 
-- **Fewer false positives** (5 vs 7, and 4 vs 5 on hard_ham). For a warning tool,
-  false alarms do the most damage: people learn to ignore the banner. The cost is 6
-  more missed phishing emails out of 584.
-- **Less reliance on the datasets' writing style.** Part of its evidence comes from
-  the rules, which look for phishing tactics rather than style. Compared with the
-  text-only model it puts 12% less weight on conversational style words (it, the,
-  but, think) and 16% less on mailing-list topic words (linux, razor, perl). That's
-  a modest change: the text still provides most of the evidence.
+### Brand masking
 
-**Does the model actually use the rules? Yes.** A raw weight isn't comparable between a
-rule and a word: a fired rule column is 1 (or 2/3 for medium severity), while a word's
-TF-IDF value in an email is usually around 0.05–0.15. So the table shows each input's
-*typical push*: weight × its usual value when present, i.e. the log-odds it adds to an
-email's score. Rank is out of all 50,548 inputs (50,539 words and word pairs + 9 rules).
+In the training data, brands like PayPal, Dropbox and USAA appear almost only in
+phishing, so a text model learns "PayPal mentioned = phishing" and would flag real
+PayPal email. Brand names are therefore replaced by one placeholder word before TF-IDF.
+The rules still see the real names, so lookalike domains are still caught.
+
+**What we learned from the placeholder.** As an ordinary word, the placeholder became a
+strong phishing sign itself: weight +3.14, the 14th strongest of 51,203 inputs, present
+in 1,063 training emails. The model no longer learned "PayPal = phishing", but it did
+learn "*a brand was mentioned* = phishing", which is the same bias in one word. So the
+placeholder is now a **stop word**: the vectorizer drops it before counting, and brand
+mentions carry no weight at all. Spotting brand impersonation is left to the rules.
+
+On the same split, unmasked, placeholder and ignored placeholder all give the saved
+model identical test results (538 / 21 / 5 / 780). That's expected: the test set has no
+genuine email from these brands. The benefit is for a real inbox, where genuine brand
+email is common.
+
+### Does the model use the rules?
+
+Yes. A raw weight isn't comparable between a rule and a word: a fired rule column is 1
+(or 2/3 for medium severity), while a word's TF-IDF value in an email is usually around
+0.05–0.15. So the table shows each input's *typical push*: weight × its usual value when
+present, i.e. the log-odds it adds to an email's score. Rank is out of all 51,066 inputs
+(51,057 words and word pairs + 9 rules).
 
 | Rule | Weight | Typical push | Rank | Training emails where it fired |
 | --- | --- | --- | --- | --- |
-| urgency | +3.40 | +2.27 | 1 | 1,075 |
-| homoglyphs | +1.96 | +1.96 | 2 | 90 |
-| risky_attachment | +2.52 | +1.75 | 3 | 152 |
-| sender_name_mismatch | +2.44 | +1.72 | 4 | 475 |
-| url_shortener | +2.01 | +1.34 | 5 | 115 |
-| link_text_mismatch | +1.17 | +1.17 | 6 | 163 |
-| lookalike_domain | +1.04 | +1.04 | 7 | 130 |
-| sensitive_request | +0.98 | +0.98 | 8 | 141 |
-| ip_link | −0.14 | −0.14 | 31 | 10 |
+| urgency | +3.64 | +2.43 | 1 | 1,052 |
+| homoglyphs | +2.07 | +2.07 | 2 | 95 |
+| risky_attachment | +2.61 | +1.81 | 3 | 152 |
+| sender_name_mismatch | +2.50 | +1.76 | 4 | 466 |
+| url_shortener | +2.13 | +1.42 | 5 | 117 |
+| link_text_mismatch | +1.27 | +1.27 | 6 | 177 |
+| sensitive_request | +1.21 | +1.21 | 7 | 146 |
+| lookalike_domain | +1.00 | +1.00 | 8 | 126 |
+| ip_link | −0.10 | −0.10 | 72 | 12 |
 
-For comparison, the strongest text inputs push far less each: "your" +0.36, "account"
-+0.31, "document" +0.25 on the phishing side; "razor", "perl", "apt" −0.12 on the safe
-side. Text evidence adds up across many words instead. On phishing test emails the text
-adds +3.15 log-odds on average and the rules +1.85; on safe emails the rules add almost
-nothing (+0.08).
+The strongest single words push far less: "your" +0.37, "account" +0.32, "document"
++0.25, "payment" +0.23. Text evidence adds up across many words instead: on phishing
+test emails the text adds +3.23 log-odds on average and the rules +1.94; on safe emails
+the rules add almost nothing (+0.08).
 
-- **Eight rules rank as the eight strongest inputs** in the whole model.
-- **ip_link is effectively unused by the model.** Its weight is near zero (slightly
-  negative) because it fired in only 10 training emails, too few to learn from. The
-  floor below covers it instead.
-- **urgency has the largest weight**, so the safeguard above matters: urgency alone
-  can make an email amber, never red.
+- **Eight rules are the eight strongest inputs** in the whole model.
+- **ip_link is effectively unused by the model**: it fired in only 12 training emails,
+  too few to learn from. The floor below covers it instead.
 
 ### The "suspicious" floor (ip_link and homoglyphs only)
 
-Some rules are strong phishing signs that the model can't weigh properly, ip_link
-because it's too rare in the data. So a fired **ip_link** or **homoglyphs** rule lifts
-the verdict to at least "suspicious" (amber), whatever the score. It never makes an
-email "phishing" (red) on its own; only the model can do that.
+A fired **ip_link** or **homoglyphs** rule lifts the verdict to at least amber, whatever
+the score, because these are strong phishing signs that almost never fire on legitimate
+mail. It never makes an email red on its own.
 
-A floor for *every* high-severity rule was tried first and rejected. On the test set
-(saved model):
+A floor for *every* high-severity rule was tried and rejected. On the current test set:
 
 | Floor applies to | Safe emails turned amber | Missed phishing caught |
 | --- | --- | --- |
-| All high-severity rules (rejected) | 23 of 775 (3.0%), incl. 17 of 49 hard_ham | 0 of 17 |
-| **ip_link and homoglyphs** (used) | **2 of 775 (0.3%)** | **0 of 17** |
+| All high-severity rules (rejected) | 20 of 785 (2.5%), incl. 16 of 39 hard_ham | 0 of 21 |
+| **ip_link and homoglyphs** (used) | **1 of 785 (0.1%)** | **0 of 21** |
 
-The broad version mostly hit newsletters: CNET mail named "NEWS.COM" sent from
-`newsletter.online.com` (sender_name_mismatch), links showing one domain and going to
-another (link_text_mismatch), and an Outlook add-on site `outlook.4team.biz`
-(lookalike_domain). Modern marketing email does the same things, so it would likely
-be worse on a real inbox. homoglyphs never fires on safe email, and ip_link fired on
-just 2 safe test emails (a news story and a Linux-Announce digest, both linking to a
-raw IP address).
-
-The narrow floor catches no extra phishing on this test set: all 17 missed phishing
-emails trigger neither rule. It's there as a safety net for real-world phishing the
-training data barely covers, at the cost of 2 false ambers. (For the text-only model
-it would have caught 1 homoglyph email.)
+The broad version mostly hit newsletters: brand-named newsletters sent from an
+email-service domain, links showing one domain and going to another, and an Outlook
+add-on site at `outlook.4team.biz`. Modern marketing email does the same things. The
+narrow floor catches no extra phishing on this test set; it's a safety net for
+real-world phishing the training data barely covers.
 
 In the extension, reasons on a "safe" email are shown as collapsed grey "minor notes",
 not warnings, so a lone rule hit on a legitimate newsletter doesn't look alarming.
 
 **Top 20 words of the text-only model.**
 
-- Phishing: your, account, please, email, you, your account, dear, below, password,
-  click, notification, document, update, payment, you have, this email, attached, we,
-  our, mailbox
-- Safe: it, that, the, but, there, they, of, my, what, just, so, like, one, which,
-  linux, at, when, razor, then, think
+- Phishing: your, account, email, please, your account, you, dear, below, password,
+  click, payment, notification, update, document, we, you have, mailbox, information,
+  view, attached
+- Safe: it, that, but, the, there, they, of, my, what, just, like, so, at, when, which,
+  razor, linux, then, one, would
 
-The phishing words are genuine phishing language. The safe words show what survived
-cleaning: conversational style (it, but, think) and mailing-list topics (linux, razor,
-the Razor spam filter). Formal, impersonal legitimate email (receipts, alerts) doesn't
-look like either list, which is another reason to expect more false positives there.
-The saved text + rules model leans on the same words, slightly less.
+The phishing words are genuine phishing language, but also everyday transactional
+language (account, payment, view, attached). The safe words are conversational style
+and mailing-list topics. Formal legitimate email such as receipts and alerts looks like
+neither list, which is exactly where the model goes wrong (next section).
+
+### Modern example emails
+
+Five hand-written emails in a modern style (in `model/tests/example_emails.py`), scored
+by the saved model:
+
+| Email | Verdict | Score | Reasons |
+| --- | --- | --- | --- |
+| Phishing: lookalike sender + mismatched link | **phishing** ✅ | 1.00 | link_text_mismatch, lookalike_domain (high); sender_name_mismatch, urgency (medium); phishing_language |
+| Personal email between friends | **safe** ✅ | 0.07 | none |
+| Marketing newsletter from a shop | **safe** ✅ | 0.25 | none |
+| Password reset from Dropbox | **suspicious** ❌ | 0.98 | urgency ('expires in 24'); phishing_language ('your', 'password', 'account') |
+| Receipt with a PDF invoice | **suspicious** ❌ | 0.84 | phishing_language ('your', 'order', 'payment') |
+
+The two wrong ones are marked as expected failures in the tests, with the cause, and a
+separate test checks they stay amber rather than red. Earlier in development the receipt
+was red with no reason and the password reset was red; the verdict rules above are what
+brought both down to an explained amber.
 
 ## Known limitations
 
@@ -197,19 +257,32 @@ Preprocessing removes signals that only reveal *which dataset* an email came fro
 dates, years, anonymised names, mailing-list footers, quoted replies, copyright
 footers. Some biases can't be cleaned away:
 
-- **Topic bias.** The legitimate emails are mostly 2002-era tech mailing lists (Linux,
-  Perl, spam filtering). Everyday legitimate mail such as bank alerts, receipts,
-  deliveries, and work email is barely represented. Expect more false positives on that
-  kind of mail than the test scores suggest.
+- **Transactional-email bias (the biggest one).** The legitimate emails are 2002
+  mailing-list posts: there are no receipts, password resets, shipping notices or
+  account alerts. Words those emails always use ("your order", "your password",
+  "payment", "invoice", "attached") were only ever seen in phishing. Genuine
+  transactional email therefore scores high: a real receipt scores 0.84 and a real
+  password reset 0.98. The verdict rules keep them amber instead of red, but they are
+  still false alarms. The urgency rule adds to this for password resets, because
+  genuine ones say "this link expires in 24 hours".
+  **Future fix:** train on modern legitimate transactional email (receipts, password
+  resets, shipping notices, account alerts), then re-check the urgency phrases that
+  genuine services use.
+- **Topic bias.** Beyond transactional mail, the legitimate emails are mostly tech
+  mailing lists (Linux, Perl, spam filtering). The model partly learns
+  "conversational tech talk = safe", so formal, impersonal legitimate mail is more at
+  risk than the test scores suggest.
 - **English only.** All the legitimate emails are in English, so non-English phishing
   would teach the model "foreign language = phishing". v1 drops non-English emails
   from training (158 phishing, 8 legitimate). Results on non-English email are not
   reliable.
 - **Brand clusters.** Many phishing emails copy real brand templates (USAA, DocuSign,
-  WeTransfer, Google), and there are no genuine emails from those brands in the
-  legitimate set. The model may treat a brand's name or footer as a phishing sign. To
-  keep test scores honest, near-duplicate campaigns are kept together on one side of
-  the train/test split.
+  WeTransfer, Google), with no genuine emails from those brands in the legitimate set.
+  Brand names are masked and ignored by the text model, but the rest of a copied
+  template (its footer, its phrasing) can still act as a phishing sign. Near-duplicate
+  campaigns are kept on one side of the train/test split so test scores stay honest.
+- **The test set shares these biases.** It comes from the same two datasets, so the
+  scores above overstate real-world accuracy.
 
 After changing preprocessing, re-check for shortcuts with
 `python -m model.src.audit_shortcuts`.
@@ -247,6 +320,22 @@ Download the datasets as described in [model/data/README.md](model/data/README.m
 
 Training saves `model/artifacts/phishlens.joblib` (about 1 MB). It is not committed;
 run the training step to create it.
+
+To analyse one email from Python (the API in Phase 2 will wrap this):
+
+```python
+from model.src.predict import analyze
+
+analyze({
+    "sender_name": "PayPal Service",
+    "sender_email": "service@paypal-account-review.com",
+    "subject": "Action required: your account has been limited",
+    "body_text": "Please confirm your account details within 24 hours.",
+    "links": [{"text": "https://www.paypal.com/signin",
+               "href": "http://paypal-account-review.com/login.php"}],
+})
+# -> {"verdict": "phishing", "score": ..., "reasons": [{"id": "link_text_mismatch", ...}, ...]}
+```
 
 ## License
 
