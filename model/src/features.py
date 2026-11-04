@@ -449,9 +449,17 @@ MAX_PHRASES_SHOWN = 2
 
 
 def _found_phrases(regex: re.Pattern, email: dict) -> list[str]:
-    """Distinct matches in the subject and body, in order, lowercased."""
-    text = f"{email.get('subject', '')}\n{email.get('body_text', '')}"
-    phrases = [" ".join(m.group().lower().split()) for m in regex.finditer(text)]
+    """Distinct matches in the subject and body, in order, lowercased.
+
+    Matched one line at a time, so a phrase can't run from one line into the next
+    (e.g. a "Reset password" button followed by "This link expires in 24 hours").
+    """
+    lines = [email.get("subject", ""), *email.get("body_text", "").splitlines()]
+    phrases = [
+        " ".join(m.group().lower().split())
+        for line in lines
+        for m in regex.finditer(line)
+    ]
     return list(dict.fromkeys(phrases))
 
 

@@ -79,7 +79,7 @@ def test_clean_text_removes_urls_emails_and_invisible_characters():
 
 def test_clean_text_removes_copyright_footers_but_not_the_word_copyright():
     footer = "Thanks for shopping.\n© 2024 PayPal, Inc. All rights reserved.\nBye"
-    assert pp.clean_text(footer) == "Thanks for shopping. . Bye"
+    assert pp.clean_text(footer) == "Thanks for shopping.\n.\nBye"  # lines kept
     assert pp.clean_text("Copyright (c) 2002 CNET Networks") == ""
     assert pp.clean_text("Copyright 1997-2002 pudge.") == "."
     assert pp.clean_text("Copyright law is broken") == "Copyright law is broken"

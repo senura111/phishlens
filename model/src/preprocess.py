@@ -80,6 +80,15 @@ def _header(msg: EmailMessage, name: str) -> str:
         return ""
 
 
+# Elements a browser shows on their own line. Only these start a new line, like
+# Gmail's innerText, so "<p>Your <b>account</b> is locked</p>" stays one line.
+_BLOCK_TAGS = [
+    "p", "div", "br", "hr", "tr", "li", "ul", "ol", "dl", "dt", "dd", "table",
+    "thead", "tbody", "tfoot", "h1", "h2", "h3", "h4", "h5", "h6", "blockquote", "pre",
+    "section", "article", "header", "footer", "center", "form",
+]  # fmt: skip
+
+
 def html_to_text_and_links(html: str) -> tuple[str, list[dict]]:
     """Return the visible text of an HTML body and its links (visible text + real href)."""
     soup = BeautifulSoup(html, "html.parser")
@@ -90,8 +99,12 @@ def html_to_text_and_links(html: str) -> tuple[str, list[dict]]:
         for a in soup.find_all("a", href=True)
         if a["href"].strip().lower().startswith(("http://", "https://", "www."))
     ]
-    # One line per block of text, so line-based cleaning below works on HTML too.
-    return soup.get_text("\n"), links
+    for tag in soup.find_all(_BLOCK_TAGS):
+        tag.insert_before("\n")
+        tag.insert_after("\n")
+    for cell in soup.find_all(["td", "th"]):  # cells in a row: side by side
+        cell.insert_after(" ")
+    return soup.get_text(), links
 
 
 _LOOKS_LIKE_HTML_RE = re.compile(r"<(?:html|body|div|table|p|br|span|img|a)\b", re.I)
@@ -221,7 +234,19 @@ def clean_text(text: str) -> str:
     text = EMAIL_RE.sub(" ", text)
     text = _COPYRIGHT_RE.sub(" ", text)  # before dates: it uses the year to match
     text = DATE_RE.sub(" ", text)
-    return _SPACES_RE.sub(" ", text).strip()
+    return tidy_lines(text)
+
+
+# Whitespace other than line breaks.
+_LINE_SPACES_RE = re.compile(r"[^\S\n]+")
+
+
+def tidy_lines(text: str) -> str:
+    """Collapse spaces within each line and drop empty lines, but keep line breaks.
+    They're sentence boundaries for the rules: a button label ("Reset password") and
+    the next sentence ("This link expires...") must not read as one phrase."""
+    lines = (_LINE_SPACES_RE.sub(" ", line).strip() for line in text.splitlines())
+    return "\n".join(line for line in lines if line)
 
 
 # Single-word tags in square brackets, added by mailing lists ("[ILUG]") or spam filters

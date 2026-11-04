@@ -554,3 +554,24 @@ def test_rule_vector_has_no_attachment_count_feature():
     # Only the risky_attachment rule counts; a safe attachment adds nothing.
     email = make_email(attachments=["report.pdf", "photo.jpg"])
     assert ft.rule_vector(ft.find_reasons(email)) == [0.0] * len(ft.REASON_IDS)
+
+
+# --- Rules match one line at a time --------------------------------------------------
+
+
+def test_urgency_does_not_match_across_lines():
+    email = make_email(body="Reset password\nThis link expires soon")
+    message = ft.urgency(email)[0]["message"]
+    assert "'expires soon'" in message
+    assert "password this link" not in message
+
+
+def test_password_reset_example_urgency_does_not_match_across_the_button_text():
+    from model.src.preprocess import prepare_email
+    from model.tests.example_emails import PASSWORD_RESET
+
+    message = ft.urgency(prepare_email(PASSWORD_RESET))[0]["message"]
+    # Before the fix the "Reset password" button ran into the next sentence and
+    # matched as 'password this link expires'.
+    assert "password this link expires" not in message
+    assert message == "Uses pressure or threats to rush you: 'expires in 24'"
