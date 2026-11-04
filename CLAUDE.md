@@ -60,11 +60,12 @@ phishlens/
 │   │   ├── popup.html
 │   │   ├── popup.js
 │   │   └── popup.css
-│   ├── icons/
+│   ├── icons/                 # icon16/32/48/128.png, made from docs/icon.svg
 │   └── tests/
 │       └── payload.test.js    # run with: node --test extension/tests/payload.test.js
 └── docs/
     ├── banner-preview.html    # every banner state with sample data, incl. hostile text
+    ├── icon.svg               # original artwork for the extension icons
     └── screenshots/
 ```
 

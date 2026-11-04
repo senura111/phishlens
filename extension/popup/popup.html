@@ -6,7 +6,7 @@
     <link rel="stylesheet" href="popup.css" />
   </head>
   <body>
-    <h1>PhishLens</h1>
+    <h1><img src="../icons/icon32.png" alt="" width="24" height="24" />PhishLens</h1>
 
     <p id="status" class="status status-checking">Checking the local server...</p>
     <div id="help" hidden>
@@ -14,10 +14,25 @@
       <code>.venv\Scripts\python -m uvicorn api.main:app --host 127.0.0.1 --port 8000</code>
     </div>
 
+    <p>
+      When you open an email in Gmail, PhishLens shows a banner above it saying whether
+      it looks like phishing, and why.
+    </p>
+    <ul class="legend">
+      <li><span class="swatch swatch-phishing"></span><strong>Red:</strong> likely phishing</li>
+      <li>
+        <span class="swatch swatch-suspicious"></span><strong>Amber:</strong> signs of
+        phishing, check carefully
+      </li>
+      <li><span class="swatch swatch-safe"></span><strong>Green:</strong> no signs found</li>
+      <li>
+        <span class="swatch swatch-neutral"></span><strong>Grey:</strong> not checked, or
+        only partly
+      </li>
+    </ul>
     <p class="about">
-      PhishLens checks the emails you open in Gmail for signs of phishing and explains
-      why. The analysis runs on a small server on your own computer, so email content
-      never leaves it.
+      The analysis runs on a small server on your own computer, so email content never
+      leaves it. No email is stored, and nothing is sent anywhere else.
     </p>
     <a href="https://github.com/senura111/phishlens" target="_blank" rel="noopener">
       Source code on GitHub
