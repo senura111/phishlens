@@ -481,23 +481,20 @@ dismissed; it stays dismissed until the tab is reloaded.
 
 The two test emails below have the same words ("Your account will be suspended within
 24 hours. Log in at paypal.com/login to verify"), and the model scores both about
-0.99. Only the link differs. On the left it shows `paypal.com` but goes to a raw IP
-address, so the rules find hard evidence and the banner is red. On the right the link
+0.99. Only the link differs. In the first, it shows `paypal.com` but goes to a raw IP
+address, so the rules find hard evidence and the banner is red. In the second, the link
 goes where its text says, so only the wording is suspicious, and the
 [verdict rules](#verdict-rules) cap it at amber.
 
-<table>
-  <tr>
-    <th>A link that lies: red</th>
-    <th>An honest link: amber</th>
-  </tr>
-  <tr>
-    <td width="40%"><img src="docs/screenshots/banner-red-phishing.png"
-             alt="Red banner: 'This email is likely phishing.' Reasons: a link shows paypal.com but goes to 185.22.10.4, a link goes to a raw IP address, urgency phrases, phishing-like wording. Score 0.99."></td>
-    <td width="60%"><img src="docs/screenshots/banner-amber-honest-link.png"
-             alt="Amber banner on the same email text: 'This email shows signs of phishing. Check carefully before clicking links or replying.' Reasons: urgency phrases and phishing-like wording only. Score 0.98."></td>
-  </tr>
-</table>
+**A link that lies: red**
+
+<img src="docs/screenshots/banner-red-phishing.png" width="600"
+     alt="Red banner: 'This email is likely phishing.' Reasons: a link shows paypal.com but goes to 185.22.10.4, a link goes to a raw IP address, urgency phrases, phishing-like wording. Score 0.99.">
+
+**An honest link: amber**
+
+<img src="docs/screenshots/banner-amber-honest-link.png"
+     alt="Amber banner on the same email text: 'This email shows signs of phishing. Check carefully before clicking links or replying.' Reasons: urgency phrases and phishing-like wording only. Score 0.98.">
 
 [docs/banner-preview.html](docs/banner-preview.html) shows every state with sample
 data. Open it in Chrome; no server or extension needed.
